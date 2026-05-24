@@ -6,6 +6,8 @@ import AutoApplyPanel from '../components/AutoApplyPanel'
 import { useApp }    from '../context/AppContext'
 import { useAuth }   from '../context/AuthContext'
 
+const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
+
 const WORK_TYPES = ['All', 'Remote', 'Hybrid', 'On-site']
 const JOB_TYPES  = ['All', 'Full-time', 'Internship', 'Contract']
 const LEVELS     = ['All', 'Entry-Level', 'Mid-Level', 'Senior']
@@ -16,22 +18,6 @@ const STATUS_BADGE = {
   Interview: 'badge-green',
   Rejected:  'badge-red',
 }
-
-// Dummy data fallback
-const FALLBACK_JOBS = [
-  {
-    id: 'd1', title: 'Frontend Developer', company: 'TechCorp', location: 'Remote',
-    salary: '$90k - $120k', workType: 'Remote', jobType: 'Full-time', experienceLevel: 'Mid-Level',
-    skills: ['React', 'JavaScript', 'CSS'], matchScore: 85, postedDate: 'Today',
-    logo: 'T', logoColor: '#3b82f6', status: 'New', apply_link: 'https://example.com/apply'
-  },
-  {
-    id: 'd2', title: 'React Engineer', company: 'StartupInc', location: 'New York (Hybrid)',
-    salary: '$110k - $140k', workType: 'Hybrid', jobType: 'Full-time', experienceLevel: 'Senior',
-    skills: ['React', 'Node.js', 'TypeScript'], matchScore: 92, postedDate: 'Yesterday',
-    logo: 'S', logoColor: '#10b981', status: 'Saved', apply_link: 'https://example.com/apply'
-  }
-]
 
 export default function DailyJobs() {
   const { appHistory, autoApply, toast } = useApp()
@@ -46,60 +32,84 @@ export default function DailyJobs() {
   const [level,         setLevel]         = useState('All')
   const [view,          setView]          = useState('grid')
   const [sortBy,        setSortBy]        = useState('newest')
-  const [showPrefOnly,  setShowPrefOnly]  = useState(false)
+  const [showPrefOnly,  setShowPrefOnly]  = useState(true)
   
   // Backend states
   const [jobsData, setJobsData] = useState([])
   const [stats, setStats] = useState({ totalJobsToday: 0, appliedCount: 0, savedCount: 0 })
   const [loading, setLoading] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [totalJobs, setTotalJobs] = useState(0)
 
-  const fetchJobs = useCallback(async () => {
-    setLoading(true)
+  const fetchJobs = async (pageNum = 1, append = false) => {
+    if (append) setLoadingMore(true)
+    else setLoading(true)
+
     try {
       const params = new URLSearchParams()
       if (search) params.append('search', search)
-      if (workType !== 'All') params.append('job_type', workType.toLowerCase())
-      // jobType (Full-time/etc) is no longer sent as job_type to backend since job_type now means remote/hybrid
+      if (workType !== 'All') params.append('workType', workType)
+      if (jobType !== 'All') params.append('jobType', jobType)
+      if (level !== 'All') params.append('level', level)
+      if (showPrefOnly && prefs.roles.length > 0) params.append('roles', prefs.roles.join(','))
       params.append('sort', sortBy)
+      params.append('page', pageNum)
+      params.append('limit', 50)
+
+      console.log(`[Frontend] Fetching jobs from: ${API_BASE}/jobs?${params.toString()}`);
 
       const [jobsRes, statsRes] = await Promise.all([
-        fetch(`https://backend2-production-6818.up.railway.app/api/jobs?${params.toString()}`),
-        fetch('https://backend2-production-6818.up.railway.app/api/stats')
+        fetch(`${API_BASE}/jobs?${params.toString()}`),
+        !append ? fetch(`${API_BASE}/stats`) : Promise.resolve(null)
       ])
 
       if (jobsRes.ok) {
-        const data = await jobsRes.json()
-        setJobsData(data)
+        let data;
+        try { data = await jobsRes.json(); } catch { data = { jobs: [] }; }
+        const fetchedJobs = data.jobs || data.data || data;
+        setJobsData(prev => append ? [...prev, ...fetchedJobs] : fetchedJobs)
+        if (data.totalPages) setTotalPages(data.totalPages)
+        if (data.totalJobs !== undefined) setTotalJobs(data.totalJobs)
       } else {
-        throw new Error('API failed')
+        throw new Error(`API failed with status: ${jobsRes.status}`)
       }
 
-      if (statsRes.ok) {
-        const statsData = await statsRes.json()
-        setStats(statsData)
+      if (statsRes && statsRes.ok) {
+        try {
+          const statsData = await statsRes.json()
+          setStats(statsData)
+        } catch (e) {}
       }
     } catch (err) {
-      console.error('Error fetching jobs, using fallback:', err)
-      setJobsData(FALLBACK_JOBS)
+      console.error('[Frontend] Error fetching jobs:', err)
+      if (!append) setJobsData([])
     } finally {
       setLoading(false)
+      setLoadingMore(false)
     }
-  }, [search, workType, jobType, sortBy])
+  }
 
+  // Fetch when filters change (resets to page 1)
   useEffect(() => {
-    fetchJobs()
-  }, [fetchJobs])
+    const timer = setTimeout(() => {
+      setPage(1)
+      fetchJobs(1, false)
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search, workType, jobType, level, showPrefOnly, sortBy])
+
+  // Fetch when page changes (Load More)
+  useEffect(() => {
+    if (page > 1) {
+      fetchJobs(page, true)
+    }
+  }, [page])
 
   const markApplied = async (job) => {
     try {
-      // Fallback handles fake IDs
-      if (job.id.startsWith('d')) {
-        setJobsData(prev => prev.map(j => j.id === job.id ? { ...j, status: 'Applied' } : j))
-        toast('Applied to dummy job!')
-        return
-      }
-
-      const res = await fetch('https://backend2-production-6818.up.railway.app/api/apply-job', {
+      const res = await fetch(`${API_BASE}/apply-job`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId: job.id })
@@ -118,19 +128,15 @@ export default function DailyJobs() {
 
   const handleSave = async (jobId) => {
     try {
-      if (jobId.startsWith('d')) {
-        setJobsData(prev => prev.map(j => j.id === jobId ? { ...j, status: j.status === 'Saved' ? 'New' : 'Saved' } : j))
-        return
-      }
-
-      const res = await fetch('https://backend2-production-6818.up.railway.app/api/save-job', {
+      const res = await fetch(`${API_BASE}/save-job`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId })
       })
 
       if (res.ok) {
-        const data = await res.json()
+        let data;
+        try { data = await res.json() } catch { data = {} }
         setJobsData(prev => prev.map(j => j.id === jobId ? { ...j, status: data.saved ? 'Saved' : 'New' } : j))
         toast(data.saved ? 'Job saved 🔖' : 'Removed from saved')
         fetchJobs()
@@ -149,11 +155,8 @@ export default function DailyJobs() {
     )
   }
 
-  // Local filter for preference and level (since backend doesn't handle preference perfectly)
-  const filtered = jobsData.filter(j => {
-    const prefOk = !showPrefOnly || isPrefMatch(j)
-    return prefOk && (level === 'All' || j.experienceLevel === level)
-  })
+  // Backend now handles all filtering, so we can use jobsData directly
+  const filtered = jobsData;
 
   // Stats for UI
   const bestMatch = jobsData.length ? Math.max(...jobsData.map(j => j.matchScore)) : 0
@@ -179,10 +182,10 @@ export default function DailyJobs() {
           {/* ── Stats bar ── */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { label: 'Jobs Today',       value: stats.totalJobsToday,  sub: 'New listings',      color: 'var(--primary)',   bg: 'var(--primary-lt)' },
-              { label: 'Applied',          value: stats.appliedCount,    sub: 'Total applied',     color: 'var(--accent-dk)', bg: 'var(--accent-lt)' },
-              { label: 'Saved',            value: stats.savedCount,      sub: 'Ready to apply',    color: 'var(--sage-dk)',   bg: 'var(--sage-lt)' },
-              { label: 'Pref. Matches',    value: prefCount,             sub: 'Match your roles',  color: 'var(--primary)',   bg: 'var(--primary-lt)' },
+              { label: 'Jobs Today',       value: 0,                     sub: 'New listings',      color: 'var(--primary)',   bg: 'var(--primary-lt)' },
+              { label: 'Applied',          value: 0,                     sub: 'Total applied',     color: 'var(--accent-dk)', bg: 'var(--accent-lt)' },
+              { label: 'Saved',            value: 0,                     sub: 'Ready to apply',    color: 'var(--sage-dk)',   bg: 'var(--sage-lt)' },
+              { label: 'Pref. Matches',    value: 0,                     sub: 'Match your roles',  color: 'var(--primary)',   bg: 'var(--primary-lt)' },
             ].map(c => (
               <div key={c.label} className="card p-4 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-sm flex-shrink-0"
@@ -254,7 +257,7 @@ export default function DailyJobs() {
               {/* Result count + sort */}
               <div className="flex items-center justify-between">
                 <p className="text-sm" style={{ color: 'var(--text-m)' }}>
-                  <span className="font-bold" style={{ color: 'var(--text-h)' }}>{loading ? '...' : filtered.length}</span> jobs found
+                  <span className="font-bold" style={{ color: 'var(--text-h)' }}>{loading ? '...' : totalJobs}</span> jobs found
                 </p>
                 <select className="input text-xs" style={{ width: 'auto', padding: '6px 12px' }}
                   value={sortBy} onChange={e => setSortBy(e.target.value)}>
@@ -327,6 +330,20 @@ export default function DailyJobs() {
                     </table>
                     {filtered.length === 0 && <div className="p-10 text-center"><p style={{ color: 'var(--text-m)' }}>No jobs found</p></div>}
                   </div>
+                </div>
+              )}
+
+              {/* ── LOAD MORE BUTTON ── */}
+              {!loading && page < totalPages && (
+                <div className="flex justify-center mt-4 mb-8">
+                  <button 
+                    className="btn px-6 py-2 rounded-full" 
+                    style={{ background: 'var(--bg-subtle)', color: 'var(--text-b)', border: '1px solid var(--border)' }}
+                    onClick={() => setPage(p => p + 1)}
+                    disabled={loadingMore}
+                  >
+                    {loadingMore ? 'Loading...' : 'Load More Jobs'}
+                  </button>
                 </div>
               )}
             </div>
@@ -445,7 +462,7 @@ function EmptyState({ onClear }) {
   return (
     <div className="col-span-2 card p-12 text-center flex flex-col items-center gap-3">
       <span className="text-4xl">🔍</span>
-      <p className="font-bold" style={{ color: 'var(--text-h)' }}>No jobs match your filters</p>
+      <p className="font-bold" style={{ color: 'var(--text-h)' }}>No jobs available yet</p>
       <button className="btn btn-ghost btn-sm" onClick={onClear}>Clear Filters</button>
     </div>
   )

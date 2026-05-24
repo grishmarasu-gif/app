@@ -26,21 +26,24 @@ export default function Applications() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('https://backend2-production-6818.up.railway.app/api/my-jobs')
+    const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
+    fetch(`${API_BASE}/my-jobs`)
       .then(res => res.json())
       .then(data => {
-        setMyJobs(data)
+        console.log('[Frontend Applications] my-jobs array length:', Array.isArray(data) ? data.length : (data.jobs ? data.jobs.length : 0))
+        setMyJobs(Array.isArray(data) ? data : (data.jobs || []))
         setLoading(false)
       })
       .catch(err => {
-        console.error('Failed to fetch applications', err)
+        console.error('[Frontend Applications] Failed to fetch applications:', err)
         setLoading(false)
       })
   }, [])
 
   const updateStatus = async (jobId, newStatus) => {
     try {
-      const res = await fetch(`https://backend2-production-6818.up.railway.app/api/jobs/${jobId}/status`, {
+      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
+      const res = await fetch(`${API_BASE}/jobs/${jobId}/status`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: newStatus })
@@ -56,7 +59,8 @@ export default function Applications() {
 
   const handleSave = async (jobId) => {
     try {
-      const res = await fetch('https://backend2-production-6818.up.railway.app/api/save-job', {
+      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
+      const res = await fetch(`${API_BASE}/save-job`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ jobId })

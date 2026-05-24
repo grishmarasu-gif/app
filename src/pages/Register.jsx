@@ -19,12 +19,13 @@ export default function Register() {
     if (form.password !== form.confirm) return setError('Passwords do not match.')
 
     setLoading(true)
-    const result = register({ name: form.name.trim(), email: form.email.trim(), password: form.password })
+    const result = await register({ name: form.name.trim(), email: form.email.trim(), password: form.password })
     setLoading(false)
 
     if (!result.ok) return setError(result.error)
-    // After register → go to onboarding (set career preferences)
-    navigate('/onboarding')
+    
+    // Auth Flow Fix: redirect to login
+    navigate('/login', { state: { message: 'Account created successfully! Please log in.' } })
   }
 
   return (

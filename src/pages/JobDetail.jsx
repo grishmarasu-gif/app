@@ -13,14 +13,15 @@ export default function JobDetail() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch(`https://backend2-production-6818.up.railway.app/api/jobs/${id}`)
+    const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
+    fetch(`${API_BASE}/jobs/${id}`)
       .then(res => res.json())
       .then(data => {
         setJob(data)
         setLoading(false)
       })
       .catch(err => {
-        console.error('Failed to fetch job details', err)
+        console.error('[Frontend JobDetail] Failed to fetch job details', err)
         setLoading(false)
       })
   }, [id])
@@ -166,7 +167,8 @@ export default function JobDetail() {
                     <button
                       onClick={async () => {
                         try {
-                          const res = await fetch('https://backend2-production-6818.up.railway.app/api/apply-job', {
+                          const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
+                          const res = await fetch(`${API_BASE}/apply-job`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ jobId: job.id })

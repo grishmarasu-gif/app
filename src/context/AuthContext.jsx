@@ -1,6 +1,14 @@
-import { createContext, useContext, useState } from 'react'
+import { createContext, useContext, useState, useEffect } from 'react'
 
 const AuthContext = createContext(null)
+
+const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
+
+async function safeJson(res) {
+  const text = await res.text()
+  try { return JSON.parse(text) } 
+  catch { return { message: 'Server returned an invalid response (HTML)' } }
+}
 
 // ── localStorage helpers ───────────────────────────────────────────
 const LS = {
@@ -10,84 +18,225 @@ const LS = {
 }
 
 export function AuthProvider({ children }) {
-  // Persist session across page refresh
-  const [sessionEmail, setSessionEmail] = useState(() => LS.get('a4f_session', null))
-  const [updateCounter, setUpdateCounter] = useState(0)
+  const [token, setToken] = useState(() => localStorage.getItem('authToken'))
+  const [currentUser, setCurrentUser] = useState(null)
+  const [storedPrefs, setStoredPrefs] = useState(null)
+  const [isLoading, setIsLoading] = useState(true)
 
-  const isLoggedIn = !!sessionEmail
+  const isLoggedIn = !!token
+  const pricingCompleted = currentUser?.pricingCompleted === true
+  const onboardingCompleted = currentUser?.onboardingCompleted === true
+  const prefsExist = storedPrefs && (storedPrefs.domains?.length > 0 || storedPrefs.roles?.length > 0)
 
-  // ── Helpers to read / write per-user data ──────────────────────
-  const userKey   = (e) => `a4f_user_${e}`
-  const prefsKey  = (e) => `a4f_prefs_${e}`
+  // Fetch user profile if token exists
+  useEffect(() => {
+    if (!token) {
+      setCurrentUser(null)
+      setStoredPrefs(null)
+      setIsLoading(false)
+      return
+    }
 
-  function getStoredUser(email) { return LS.get(userKey(email), null) }
-  function getStoredPrefs(email){ return LS.get(prefsKey(email), null) }
-
-  // By using updateCounter here, any time updateCounter changes, this component re-renders
-  // and re-evaluates currentUser and storedPrefs.
-  const currentUser  = sessionEmail ? getStoredUser(sessionEmail)  : null
-  const storedPrefs  = sessionEmail ? getStoredPrefs(sessionEmail) : null
-  const prefsExist   = storedPrefs && (storedPrefs.domains?.length > 0 || storedPrefs.roles?.length > 0)
+    async function fetchMe() {
+      try {
+        const res = await fetch(`${API_BASE}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        })
+        if (res.ok) {
+          const data = await safeJson(res)
+          setCurrentUser(data.user)
+          setStoredPrefs(data.user.preferences || null)
+        } else {
+          // Token might be invalid
+          logout()
+        }
+      } catch (err) {
+        console.error('Failed to fetch user:', err)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+    fetchMe()
+  }, [token])
 
   // ── Register ───────────────────────────────────────────────────
-  function register({ name, email, password }) {
-    const users = LS.get('a4f_users', {})
-    if (users[email.toLowerCase()]) {
-      return { ok: false, error: 'An account with this email already exists.' }
+  async function register({ name, email, password }) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/register`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      })
+      const data = await safeJson(res)
+      if (!res.ok) return { ok: false, error: data.message || 'Registration failed.' }
+      
+      // Auth Flow Fix: Do not auto-login on signup
+      return { ok: true }
+    } catch (error) {
+      console.error("Register error:", error);
+      return { ok: false, error: error.message === 'Failed to fetch' ? 'Cannot connect to server. Ensure backend is running and CORS is configured.' : `Network error: ${error.message}` }
     }
-    const newUser = { name, email: email.toLowerCase(), password, createdAt: new Date().toISOString() }
-    users[email.toLowerCase()] = newUser
-    LS.set('a4f_users', users)
-    LS.set(userKey(email.toLowerCase()), newUser)
-    LS.set('a4f_session', email.toLowerCase())
-    setSessionEmail(email.toLowerCase())
-    return { ok: true }
   }
 
   // ── Login ──────────────────────────────────────────────────────
-  function login({ email, password }) {
-    const users = LS.get('a4f_users', {})
-    const stored = users[email.toLowerCase()]
-    if (!stored) return { ok: false, error: 'No account found with this email.' }
-    if (stored.password !== password) return { ok: false, error: 'Incorrect password.' }
-    LS.set('a4f_session', email.toLowerCase())
-    setSessionEmail(email.toLowerCase())
-    return { ok: true }
+  async function login({ email, password }) {
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      })
+      const data = await safeJson(res)
+      if (!res.ok) return { ok: false, error: data.message || 'Invalid credentials.' }
+      
+      localStorage.setItem('authToken', data.token)
+      setToken(data.token)
+      setCurrentUser(data.user)
+      setStoredPrefs(data.user.preferences || null)
+      return { ok: true }
+    } catch (error) {
+      console.error("Login error:", error);
+      return { ok: false, error: error.message === 'Failed to fetch' ? 'Cannot connect to server. Ensure backend is running and CORS is configured.' : `Network error: ${error.message}` }
+    }
   }
 
   // ── Logout ─────────────────────────────────────────────────────
-  function logout() {
-    LS.remove('a4f_session')
-    setSessionEmail(null)
+  async function logout() {
+    try {
+      if (token) {
+        await fetch(`${API_BASE}/auth/logout`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` }
+        }).catch(() => {}); // ignore errors on logout
+      }
+    } finally {
+      localStorage.clear();
+      sessionStorage.clear();
+      setToken(null);
+      setCurrentUser(null);
+      setStoredPrefs(null);
+    }
   }
 
   // ── Save preferences ───────────────────────────────────────────
-  function savePreferences(prefs) {
-    if (!sessionEmail) return
-    LS.set(prefsKey(sessionEmail), prefs)
-    setUpdateCounter(c => c + 1) // force re-render
+  async function savePreferences(prefs) {
+    if (!token) return { ok: false, error: 'Not authenticated' }
+    try {
+      const res = await fetch(`${API_BASE}/users/preferences`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(prefs)
+      })
+      const data = await safeJson(res)
+      if (!res.ok) return { ok: false, error: data.message || 'Failed to save preferences' }
+      
+      setStoredPrefs(data.preferences || prefs)
+      if (data.user) {
+        setCurrentUser({ ...data.user, onboardingCompleted: true })
+      } else {
+        setCurrentUser(prev => prev ? { ...prev, onboardingCompleted: true } : prev)
+      }
+      return { ok: true }
+    } catch (error) {
+      console.error("Save preferences error:", error);
+      return { ok: false, error: error.message === 'Failed to fetch' ? 'Cannot connect to server. Ensure backend is running and CORS is configured.' : `Network error: ${error.message}` }
+    }
+  }
+
+  // ── Upload & parse resume ──────────────────────────────────────────────
+  async function uploadResume(file) {
+    if (!token) return { ok: false, error: 'Not authenticated' }
+    try {
+      const formData = new FormData()
+      formData.append('resume', file)
+      const res = await fetch(`${API_BASE}/resume/upload`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      })
+      const data = await safeJson(res)
+      if (!res.ok) return { ok: false, error: data.message || 'Upload failed.' }
+      return { ok: true, parsed: data.resume?.parsed || {} }
+    } catch (error) {
+      console.error('Upload resume error:', error)
+      return { ok: false, error: error.message === 'Failed to fetch' ? 'Cannot connect to server.' : `Network error: ${error.message}` }
+    }
   }
 
   // ── Update user profile ────────────────────────────────────────
-  function updateProfile(data) {
-    if (!sessionEmail) return
-    const updated = { ...currentUser, ...data }
-    LS.set(userKey(sessionEmail), updated)
-    setUpdateCounter(c => c + 1) // force re-render
+  async function updateProfile(data) {
+    if (!token) return { ok: false, error: 'Not authenticated' }
+    try {
+      const res = await fetch(`${API_BASE}/users/profile`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      })
+      const resData = await safeJson(res)
+      if (!res.ok) return { ok: false, error: resData.message || 'Failed to update profile' }
+      
+      setCurrentUser(resData.user)
+      return { ok: true }
+    } catch (error) {
+      console.error("Update profile error:", error);
+      return { ok: false, error: error.message === 'Failed to fetch' ? 'Cannot connect to server. Ensure backend is running and CORS is configured.' : `Network error: ${error.message}` }
+    }
+  }
+
+  // ── Complete Pricing ───────────────────────────────────────────
+  async function completePricing() {
+    if (!token) return { ok: false, error: 'Not authenticated' }
+    try {
+      const res = await fetch(`${API_BASE}/users/complete-pricing`, {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`
+        }
+      })
+      if (!res.ok) {
+        const text = await res.text()
+        console.error("API Error Text:", text)
+        try {
+          const data = JSON.parse(text)
+          return { ok: false, error: data.message || 'Failed to complete pricing' }
+        } catch {
+          return { ok: false, error: 'Server returned an invalid response (HTML)' }
+        }
+      }
+      
+      const data = await safeJson(res)
+      setCurrentUser(data.user)
+      return { ok: true }
+    } catch (error) {
+      console.error("Complete pricing error:", error);
+      return { ok: false, error: error.message === 'Failed to fetch' ? 'Cannot connect to server.' : `Network error: ${error.message}` }
+    }
   }
 
   return (
     <AuthContext.Provider value={{
       isLoggedIn,
-      sessionEmail,
+      token,
       currentUser,
+      pricingCompleted,
+      onboardingCompleted,
       storedPrefs,
       prefsExist,
+      isLoading,
       register,
       login,
       logout,
       savePreferences,
+      uploadResume,
       updateProfile,
+      completePricing,
     }}>
       {children}
     </AuthContext.Provider>

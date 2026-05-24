@@ -1,8 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { useApp } from '../context/AppContext'
 import { jobs as allJobs } from '../data/jobs'
+import LogoutButton from '../components/LogoutButton'
+
+const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
 
 const features = [
   { icon: '🎯', title: 'Domain-Based Discovery', desc: 'Tell us your industry and role. We surface only the jobs that match your career direction.' },
@@ -168,10 +171,29 @@ export default function Landing() {
   const { isLoggedIn, prefsExist } = useAuth()
   const navigate = useNavigate()
   const [showWelcome, setShowWelcome] = useState(false)
+  const [previewJobs, setPreviewJobs] = useState([])
+  const [loadingJobs, setLoadingJobs] = useState(true)
+
+  useEffect(() => {
+    async function fetchPreviewJobs() {
+      try {
+        const res = await fetch(`${API_BASE}/jobs?limit=6`)
+        if (res.ok) {
+          const data = await res.json()
+          const fetched = data.jobs || data.data || data
+          setPreviewJobs(Array.isArray(fetched) ? fetched.slice(0, 6) : [])
+        }
+      } catch (err) {
+        console.error('Failed to fetch preview jobs', err)
+      } finally {
+        setLoadingJobs(false)
+      }
+    }
+    fetchPreviewJobs()
+  }, [])
 
   function handleGetStarted() {
     if (isLoggedIn) {
-      // Show stats modal for returning users
       setShowWelcome(true)
     } else {
       navigate('/register')
@@ -210,6 +232,7 @@ export default function Landing() {
               <button onClick={() => navigate('/dashboard')} className="btn btn-primary btn-sm">
                 Go to Dashboard →
               </button>
+              <LogoutButton isNavbar={true} />
             </>
           ) : (
             <>
@@ -250,6 +273,54 @@ export default function Landing() {
         <p className="text-xs mt-6" style={{ color: 'var(--text-m)' }}>
           {isLoggedIn ? 'Continue your job search journey.' : 'Free to start · No credit card required'}
         </p>
+      </section>
+
+      {/* Live Jobs Preview Section */}
+      <section className="py-20 px-6" style={{ background: 'var(--bg-subtle)', borderTop: '1px solid var(--border)' }}>
+        <div className="max-w-6xl mx-auto">
+          <div className="text-center mb-14">
+            <p className="section-label mb-3">Live Opportunities</p>
+            <h2 className="font-extrabold text-3xl md:text-4xl" style={{ color: 'var(--text-h)' }}>
+              Recently posted jobs matching our network
+            </h2>
+            <p className="text-sm mt-3" style={{ color: 'var(--text-m)' }}>Sign up to see thousands more directly matching your preferences.</p>
+          </div>
+
+          {loadingJobs ? (
+            <div className="text-center py-10" style={{ color: 'var(--text-m)' }}>Fetching latest opportunities...</div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {previewJobs.map(j => (
+                <div key={j.id} className="card p-5 flex flex-col gap-3 hover:-translate-y-1 transition-transform duration-200">
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                      style={{ background: j.logoColor || 'var(--primary)' }}>{j.logo || j.company?.charAt(0)}</div>
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-bold text-sm truncate" style={{ color: 'var(--text-h)' }} title={j.title}>{j.title}</h3>
+                      <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--text-m)' }}>{j.company} · {j.location}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    <span className={`badge ${j.workType === 'Remote' ? 'badge-green' : j.workType === 'Hybrid' ? 'badge-orange' : 'badge-slate'}`}>{j.workType || 'Remote'}</span>
+                    <span className="badge badge-slate">{j.experienceLevel || 'Entry-Level'}</span>
+                  </div>
+
+                  <div className="flex flex-wrap gap-1.5 mt-2 h-[50px] overflow-hidden">
+                    {(j.skills || []).map(s => (
+                      <span key={s} className="text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap"
+                        style={{ background: 'var(--bg)', color: 'var(--sec-mid)', border: '1px solid var(--border)' }}>{s}</span>
+                    ))}
+                  </div>
+
+                  <div className="mt-auto pt-4 border-t" style={{ borderColor: 'var(--border)' }}>
+                    <button onClick={handleGetStarted} className="btn btn-primary btn-sm w-full justify-center">Login to Apply →</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </section>
 
       {/* Platform stats strip */}

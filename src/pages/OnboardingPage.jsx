@@ -7,9 +7,13 @@ export default function OnboardingPage() {
   const { savePreferences } = useAuth()
   const navigate = useNavigate()
 
-  function handleComplete(prefs) {
-    savePreferences(prefs)
-    navigate('/')
+  async function handleComplete(prefs) {
+    const res = await savePreferences(prefs)
+    if (res && !res.ok) {
+      alert(res.error) // simple error handling for page
+      return
+    }
+    navigate('/dashboard')
   }
 
   return (

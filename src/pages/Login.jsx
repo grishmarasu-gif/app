@@ -1,29 +1,31 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 
 export default function Login() {
-  const { login, prefsExist } = useAuth()
+  const { login } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [form, setForm] = useState({ email: '', password: '' })
   const [error, setError] = useState('')
+  const [successMsg] = useState(location.state?.message || '')
   const [loading, setLoading] = useState(false)
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); setError('') }
 
-  function handleSubmit(e) {
+  async function handleSubmit(e) {
     e.preventDefault()
     if (!form.email.trim())    return setError('Please enter your email address.')
     if (!form.password.trim()) return setError('Please enter your password.')
 
     setLoading(true)
-    const result = login({ email: form.email.trim(), password: form.password })
+    const result = await login({ email: form.email.trim(), password: form.password })
     setLoading(false)
 
-    if (!result.ok) return setError(result.error)
+    if (!result.ok) return setError('Invalid email or password. Please try again.')
 
     // AppRoute in App.jsx automatically redirects to /onboarding if prefs are missing
-    navigate('/dashboard')
+    navigate('/jobs')
   }
 
   return (
@@ -43,6 +45,13 @@ export default function Login() {
         <div className="card p-8">
           <h1 className="font-extrabold text-xl mb-1" style={{ color: 'var(--text-h)' }}>Welcome back</h1>
           <p className="text-sm mb-6" style={{ color: 'var(--text-m)' }}>Log in to continue your job search.</p>
+
+          {successMsg && (
+            <div className="rounded-xl px-4 py-3 mb-4 text-sm font-semibold"
+              style={{ background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' }}>
+              {successMsg}
+            </div>
+          )}
 
           {error && (
             <div className="rounded-xl px-4 py-3 mb-4 text-sm font-semibold"

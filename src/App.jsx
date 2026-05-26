@@ -34,7 +34,10 @@ function OnboardingRoute({ children }) {
   const { isLoggedIn, currentUser, isLoading } = useAuth()
   if (isLoading) return null
   if (!isLoggedIn) return <Navigate to="/login" replace />
-  if (currentUser?.pricingCompleted === false) return <Navigate to="/pricing" replace />
+  
+  // TEMP PAYMENT BYPASS FOR DEVELOPMENT
+  // if (currentUser?.pricingCompleted === false) return <Navigate to="/pricing" replace />
+  
   if (currentUser?.onboardingCompleted !== false) return <Navigate to="/dashboard" replace />
   return children
 }
@@ -44,7 +47,10 @@ function AppRoute({ children }) {
   const { isLoggedIn, currentUser, isLoading } = useAuth()
   if (isLoading) return null
   if (!isLoggedIn) return <Navigate to="/login" replace />
-  if (currentUser?.pricingCompleted === false) return <Navigate to="/pricing" replace />
+  
+  // TEMP PAYMENT BYPASS FOR DEVELOPMENT
+  // if (currentUser?.pricingCompleted === false) return <Navigate to="/pricing" replace />
+  
   if (currentUser?.onboardingCompleted === false) return <Navigate to="/onboarding" replace />
   return children
 }
@@ -71,6 +77,7 @@ function AppRoutes() {
 
       {/* Pricing — needs login but no plan yet */}
       <Route path="/pricing"  element={<PricingRoute><Pricing /></PricingRoute>} />
+      <Route path="/payment"  element={<AppRoute><Pricing /></AppRoute>} />
 
       {/* Auth — needs login & plan, but NOT necessarily prefs yet */}
       <Route path="/onboarding" element={<OnboardingRoute><OnboardingPage /></OnboardingRoute>} />

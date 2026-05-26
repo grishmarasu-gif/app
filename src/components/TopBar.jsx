@@ -6,6 +6,8 @@ export default function TopBar({ title, subtitle, actions }) {
   const name = currentUser?.name || 'User'
   const initials = name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
 
+  const plan = currentUser?.plan || 'Free'
+
   return (
     <div className="topbar flex items-center gap-4">
       <div className="flex-1 min-w-0">
@@ -36,6 +38,12 @@ export default function TopBar({ title, subtitle, actions }) {
 
         {/* Profile Section */}
         <div className="flex items-center gap-3 pl-3 md:pl-4 border-l" style={{ borderColor: 'var(--border)' }}>
+          <div className="hidden md:flex items-center mr-1">
+            <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded-full border"
+              style={{ background: 'var(--bg-subtle)', borderColor: 'var(--border)', color: plan === 'Pro' || plan === 'Pro Plus' ? 'var(--primary)' : 'var(--text-m)' }}>
+              Plan: {plan}
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <div className="w-9 h-9 rounded-full flex items-center justify-center text-white text-xs font-extrabold flex-shrink-0"
               style={{ background: 'var(--primary)' }}>{initials}</div>

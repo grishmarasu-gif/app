@@ -120,15 +120,27 @@ export function AppProvider({ children }) {
   }
 
   function markInterview(jobId) {
-    setJobStatuses(s => ({ ...s, [jobId]: 'Interview' }))
-    setAppHistory(h => h.map(a => a.jobId === jobId ? { ...a, status: 'Interview' } : a))
-    toast('Moved to Interview stage 🎤')
+    updateJobStatus(jobId, 'Interview')
   }
 
   function markRejected(jobId) {
-    setJobStatuses(s => ({ ...s, [jobId]: 'Rejected' }))
-    setAppHistory(h => h.map(a => a.jobId === jobId ? { ...a, status: 'Rejected' } : a))
-    toast('Marked as Rejected', 'info')
+    updateJobStatus(jobId, 'Rejected')
+  }
+
+  function updateJobStatus(jobId, newStatus) {
+    setJobStatuses(s => ({ ...s, [jobId]: newStatus }))
+    setAppHistory(h => h.map(a => a.jobId === jobId ? { ...a, status: newStatus } : a))
+    toast(newStatus === 'Rejected' ? 'Marked as Rejected' : `Moved to ${newStatus}`)
+  }
+
+  function withdrawApplication(jobId) {
+    setJobStatuses(s => {
+      const next = { ...s }
+      next[jobId] = 'New'
+      return next
+    })
+    setAppHistory(h => h.filter(a => a.jobId !== jobId))
+    toast('Application withdrawn', 'info')
   }
 
   function sendFollowUp(jobId) {
@@ -214,7 +226,7 @@ export function AppProvider({ children }) {
   return (
     <AppContext.Provider value={{
       jobs, jobStatuses,
-      saveJob, applyToJob, markInterview, markRejected, sendFollowUp,
+      saveJob, applyToJob, markInterview, markRejected, updateJobStatus, withdrawApplication, sendFollowUp,
       followUps, appHistory,
       autoApply, setAutoApply,
       autoSession,

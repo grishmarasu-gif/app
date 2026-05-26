@@ -20,7 +20,7 @@ const STATUS_BADGE = {
 }
 
 export default function DailyJobs() {
-  const { appHistory, autoApply, toast } = useApp()
+  const { appHistory, autoApply, toast, withdrawApplication } = useApp()
   const { storedPrefs } = useAuth()
 
   // Safely destructure preferences
@@ -124,6 +124,21 @@ export default function DailyJobs() {
       console.error('Error applying:', error)
       toast('Failed to update status', 'error')
     }
+  }
+
+  const undoApply = async (job) => {
+    withdrawApplication(job.id)
+    try {
+      const res = await fetch(`${API_BASE}/jobs/${job.id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'New' })
+      })
+      if (res.ok) {
+        setJobsData(prev => prev.map(j => j.id === job.id ? { ...j, status: 'New' } : j))
+        fetchJobs()
+      }
+    } catch (e) {}
   }
 
   const handleSave = async (jobId) => {
@@ -271,7 +286,7 @@ export default function DailyJobs() {
               {/* ── GRID VIEW ── */}
               {!loading && view === 'grid' && (
                 <div className="grid md:grid-cols-2 gap-4">
-                  {filtered.map(j => <JobCard key={j.id} job={j} isPrefMatch={isPrefMatch(j)} autoApply={autoApply} onMarkApplied={() => markApplied(j)} onSave={() => handleSave(j.id)} />)}
+                  {filtered.map(j => <JobCard key={j.id} job={j} isPrefMatch={isPrefMatch(j)} autoApply={autoApply} onMarkApplied={() => markApplied(j)} onSave={() => handleSave(j.id)} undoApply={undoApply} />)}
                   {filtered.length === 0 && <EmptyState onClear={() => { setSearch(''); setWorkType('All'); setJobType('All'); setLevel('All') }} />}
                 </div>
               )}
@@ -313,7 +328,7 @@ export default function DailyJobs() {
                                   <Link to={`/jobs/${j.id}`} className="btn btn-ghost btn-sm">View</Link>
                                   <button onClick={() => handleSave(j.id)} className="btn btn-ghost btn-sm">{j.status === 'Saved' ? '🔖' : 'Save'}</button>
                                   {isApplied
-                                    ? <span className="btn btn-sm" style={{ background: 'var(--primary-lt)', color: 'var(--primary)', border: 'none' }}>✓ Applied</span>
+                                    ? <button onClick={() => undoApply(j)} className="btn btn-sm hover:opacity-80 transition-opacity" style={{ background: 'var(--primary-lt)', color: 'var(--primary)', border: 'none' }} title="Click to undo">✓ Applied</button>
                                     : (
                                       <div className="flex gap-1">
                                         <a href={j.apply_link} target="_blank" rel="noreferrer" className="btn btn-primary btn-sm">Apply</a>
@@ -386,7 +401,7 @@ export default function DailyJobs() {
 }
 
 // ── Job Card ──────────────────────────────────────────────────────────────
-function JobCard({ job: j, isPrefMatch, autoApply, onMarkApplied, onSave }) {
+function JobCard({ job: j, isPrefMatch, autoApply, onMarkApplied, onSave, undoApply }) {
   const score     = j.matchScore
   const isApplied = j.status === 'Applied' || j.status === 'Interview'
   const isSaved   = j.status === 'Saved'
@@ -445,7 +460,7 @@ function JobCard({ job: j, isPrefMatch, autoApply, onMarkApplied, onSave }) {
           {isSaved ? '🔖' : '+ Save'}
         </button>
         {isApplied
-          ? <span className="btn btn-sm flex-shrink-0" style={{ background: 'var(--primary-lt)', color: 'var(--primary)', border: 'none' }}>✓ Applied</span>
+          ? <button onClick={() => undoApply(j)} className="btn btn-sm flex-shrink-0 hover:opacity-80 transition-opacity" style={{ background: 'var(--primary-lt)', color: 'var(--primary)', border: 'none' }} title="Click to undo">✓ Applied</button>
           : (
             <div className="flex gap-1 flex-shrink-0">
               <a href={j.apply_link} target="_blank" rel="noopener" className="btn btn-primary btn-sm">Apply</a>

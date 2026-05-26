@@ -1,90 +1,95 @@
 export function simulateAIEnhancement(form, targetJob) {
   const jobTitle = targetJob?.title || 'Professional';
   const jobKeywords = targetJob?.skills || [];
+  const reqSkills = targetJob?.preferredSkills || targetJob?.skills || [];
   
-  // 1. Generate a Professional Summary
-  const topSkills = form.skills ? form.skills.split(',').slice(0, 3).map(s => s.trim()).join(', ') : jobKeywords.slice(0, 3).join(', ');
-  const summary = `Results-driven ${jobTitle} with a proven track record of designing and developing high-quality solutions. Expertise in ${topSkills || 'modern technologies'}, with a strong focus on optimizing performance, scalability, and user experience. Adept at collaborating with cross-functional teams to deliver impactful products that align with business objectives.`;
+  // -- 1. Analyze Match and ATS Score
+  const currentSkills = form.skills ? form.skills.split(',').map(s => s.trim().toLowerCase()).filter(Boolean) : [];
+  const requiredLower = reqSkills.map(s => s.toLowerCase());
+  
+  const matchedSkills = currentSkills.filter(s => requiredLower.includes(s) || requiredLower.some(r => r.includes(s) || s.includes(r)));
+  const missingSkills = reqSkills.filter(r => !currentSkills.some(s => s.toLowerCase().includes(r.toLowerCase())));
+  
+  const matchRatio = requiredLower.length > 0 ? (matchedSkills.length / requiredLower.length) : 0.8;
+  const atsScore = Math.min(99, Math.max(65, Math.floor(matchRatio * 100) + 15)); // baseline boost for formatting
+  
+  const aiInsights = {
+    atsScore,
+    matchPercentage: Math.floor(matchRatio * 100),
+    missingSkills: missingSkills.slice(0, 5),
+    matchedKeywords: matchedSkills,
+    suggestions: [
+      `Add ${missingSkills.slice(0, 2).join(' and ')} to your skills section to improve ATS visibility.`,
+      `Quantify your achievements in your experience section with metrics (e.g., "Increased sales by 20%").`,
+      `Ensure your job titles map closely to ${jobTitle} to pass the initial keyword screen.`
+    ].filter(s => s && !s.includes('Add  and'))
+  };
 
-  // 2. Enhance Experience
-  const enhancedExperience = form.experience.map(exp => {
+  // -- 2. Generate Professional Summary (Removed per user request)
+  const summary = '';
+  const topSkills = [...new Set([...matchedSkills, ...currentSkills])].slice(0, 3).map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(', ');
+
+  // -- 3. Enhance Experience (Action Verbs & Keywords)
+  const enhancedExperience = (form.experience || []).map(exp => {
     if (!exp.company && !exp.title) return exp;
-    
     let resp = exp.responsibilities || '';
     
-    // Simple heuristic improvements for raw text
-    if (resp.length < 30 || /worked on/i.test(resp) || /did/i.test(resp)) {
-      resp = `• Spearheaded the development and deployment of key features for the ${jobTitle} initiatives at ${exp.company || 'the organization'}.\n• Collaborated with cross-functional teams to identify requirements and translate them into robust technical solutions.\n• Optimized existing workflows, improving overall efficiency and system reliability.`;
-    } else {
-      // Ensure it's bulleted and uses strong verbs
+    // Just ensure there's basic formatting without rewriting entire bullet points
+    if (resp.length > 0) {
       let bullets = resp.split('\n')
         .filter(line => line.trim().length > 0)
         .map(line => {
           let l = line.trim();
-          l = l.replace(/^[•\-\*]\s*/, ''); // remove existing bullets
-          // Enhance weak verbs
-          l = l.replace(/^worked on/i, 'Engineered and delivered');
-          l = l.replace(/^made/i, 'Architected');
-          l = l.replace(/^did/i, 'Executed');
-          l = l.replace(/^helped with/i, 'Facilitated');
-          l = l.replace(/^responsible for/i, 'Directed');
+          l = l.replace(/^[-•*]\s*/, '');
+          // Keep the original text but ensure it starts with a bullet and capital letter
           return `• ${l.charAt(0).toUpperCase() + l.slice(1)}`;
         });
-        
-      // ONE-PAGE OPTIMIZATION: Keep max 3 bullet points per experience to prevent overflow
-      if (bullets.length > 3) {
-        bullets = bullets.slice(0, 3);
-      }
       resp = bullets.join('\n');
     }
-
     return { ...exp, responsibilities: resp };
   });
 
-  // 3. Enhance Projects
-  const enhancedProjects = form.projects.map(proj => {
+  // -- 4. Enhance Projects
+  const enhancedProjects = (form.projects || []).map(proj => {
     if (!proj.title) return proj;
-    
     let desc = proj.description || '';
-    if (desc.length < 30 || /a project/i.test(desc)) {
-      desc = `• Designed and developed a comprehensive ${proj.title} utilizing ${proj.techStack || 'modern frameworks'}.\n• Implemented core functionalities that enhanced user engagement and streamlined data processing.`;
-    } else {
+    
+    // Just ensure basic formatting
+    if (desc.length > 0) {
       let bullets = desc.split('\n')
         .filter(line => line.trim().length > 0)
         .map(line => {
           let l = line.trim();
-          l = l.replace(/^[•\-\*]\s*/, '');
+          l = l.replace(/^[-•*]\s*/, '');
           return `• ${l.charAt(0).toUpperCase() + l.slice(1)}`;
         });
-        
-      // ONE-PAGE OPTIMIZATION: Keep max 2 bullet points per project
-      if (bullets.length > 2) {
-        bullets = bullets.slice(0, 2);
-      }
       desc = bullets.join('\n');
     }
-    
     return { ...proj, description: desc };
   });
 
-  // 4. Group Skills intelligently
-  const allSkills = [...new Set([...(form.skills ? form.skills.split(',') : []), ...jobKeywords])].map(s => s.trim()).filter(Boolean);
+  // -- 5. Skill Reordering & Grouping
+  // Preserve original skills, inject highly relevant missing ATS keywords gracefully
+  const finalSkillsSet = new Set([...currentSkills]);
+  matchedSkills.forEach(s => finalSkillsSet.add(s.toLowerCase()));
+  missingSkills.slice(0, 3).forEach(s => finalSkillsSet.add(s.toLowerCase())); // Inject top 3 missing keywords
+  
+  const sortedSkillsList = [...finalSkillsSet].map(s => s.charAt(0).toUpperCase() + s.slice(1));
   
   const categories = {
-    Frontend: ['react', 'vue', 'angular', 'html', 'css', 'javascript', 'typescript', 'tailwind', 'bootstrap', 'next.js', 'svelte'],
-    Backend: ['node', 'express', 'django', 'flask', 'spring', 'java', 'python', 'c#', 'php', 'ruby', 'go', 'rust', 'laravel'],
-    Database: ['sql', 'mysql', 'postgresql', 'mongodb', 'redis', 'firebase', 'dynamodb', 'oracle'],
-    Cloud: ['aws', 'azure', 'gcp', 'docker', 'kubernetes', 'terraform', 'jenkins', 'ci/cd', 'linux'],
-    Tools: ['git', 'github', 'jira', 'figma', 'postman', 'agile', 'scrum', 'webpack', 'vite']
+    'Programming Languages': ['javascript', 'typescript', 'python', 'java', 'c', 'c++', 'c#', 'go', 'rust', 'ruby', 'php', 'swift', 'kotlin', 'html', 'css', 'sql'],
+    'Frameworks & Technologies': ['react', 'react.js', 'vue', 'angular', 'next.js', 'svelte', 'node', 'node.js', 'express', 'express.js', 'django', 'flask', 'spring', 'laravel', 'tailwind', 'bootstrap', 'mysql', 'postgresql', 'mongodb', 'redis', 'firebase', 'dynamodb', 'oracle', 'sqlite', 'cassandra'],
+    'Data & ML': ['machine learning', 'deep learning', 'pandas', 'numpy', 'matplotlib', 'xgboost', 'tensorflow', 'pytorch', 'scikit-learn', 'keras', 'nlp', 'data analysis'],
+    'Tools': ['aws', 'azure', 'gcp', 'docker', 'kubernetes', 'terraform', 'jenkins', 'ci/cd', 'linux', 'nginx', 'git', 'github', 'jira', 'figma', 'postman', 'agile', 'scrum', 'webpack', 'vite', 'npm', 'yarn', 'vs code', 'jupyter notebook']
   };
 
-  const groupedSkills = { Frontend: [], Backend: [], Database: [], Cloud: [], Tools: [], Other: [] };
+  const groupedSkills = { 'Programming Languages': [], 'Frameworks & Technologies': [], 'Data & ML': [], 'Tools': [], Other: [] };
   
-  allSkills.forEach(skill => {
+  sortedSkillsList.forEach(skill => {
     const sLower = skill.toLowerCase();
     let found = false;
     for (const [cat, keywords] of Object.entries(categories)) {
-      if (keywords.some(k => sLower.includes(k))) {
+      if (keywords.some(k => sLower === k || sLower.includes(k))) {
         groupedSkills[cat].push(skill);
         found = true;
         break;
@@ -93,8 +98,19 @@ export function simulateAIEnhancement(form, targetJob) {
     if (!found) groupedSkills.Other.push(skill);
   });
 
-  // Re-build a clean comma string, but also provide grouped object for ATS template
-  const optimizedSkillsString = allSkills.join(', ');
+  const optimizedSkillsString = sortedSkillsList.join(', ');
+
+  // -- 6. Cover Letter Generation
+  const coverLetter = `Dear Hiring Manager,
+
+I am writing to express my strong interest in the ${jobTitle} position at ${targetJob?.company || 'your esteemed company'}. With a proven background in delivering high-quality solutions and a solid foundation in ${topSkills || 'relevant methodologies'}, I am confident in my ability to make an immediate impact on your team.
+
+In my previous experience, I have successfully engineered robust systems and collaborated closely with cross-functional teams to exceed project requirements. I am particularly drawn to this role because it perfectly aligns with my passion for leveraging technology to solve complex business challenges. I possess strong capabilities in ${sortedSkillsList.slice(0, 4).join(', ')}, which I understand are critical for this position.
+
+I would welcome the opportunity to discuss how my technical expertise and drive for innovation can contribute to the continued success of your organization. Thank you for your time and consideration.
+
+Sincerely,
+${form.name || 'Candidate'}`;
 
   return {
     ...form,
@@ -102,6 +118,8 @@ export function simulateAIEnhancement(form, targetJob) {
     experience: enhancedExperience,
     projects: enhancedProjects,
     skills: optimizedSkillsString,
-    groupedSkills // extra field used for professional layout
+    groupedSkills,
+    aiInsights,
+    coverLetterText: coverLetter
   };
 }

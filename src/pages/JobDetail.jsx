@@ -7,7 +7,7 @@ import { useApp } from '../context/AppContext'
 
 export default function JobDetail() {
   const { id } = useParams()
-  const { toast, saveJob } = useApp() // We still use context for toast/saveJob logic if desired, though saveJob might need backend update
+  const { toast, saveJob, withdrawApplication } = useApp()
   const [showApply, setShowApply] = useState(false)
   const [job, setJob] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -153,7 +153,25 @@ export default function JobDetail() {
                   <div className="rounded-xl p-4 text-center" style={{ background: 'var(--primary-lt)' }}>
                     <p className="text-2xl mb-1">🎉</p>
                     <p className="font-bold text-sm" style={{ color: 'var(--primary)' }}>Application Submitted!</p>
-                    <p className="text-xs mt-1" style={{ color: 'var(--sec-mid)' }}>Status: {status}</p>
+                    <p className="text-xs mt-1 mb-3" style={{ color: 'var(--sec-mid)' }}>Status: {status}</p>
+                    <button 
+                      onClick={async () => {
+                        withdrawApplication(job.id)
+                        try {
+                          const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
+                          const res = await fetch(`${API_BASE}/jobs/${job.id}/status`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ status: 'New' })
+                          });
+                          if (res.ok) setJob(prev => ({ ...prev, status: 'New' }));
+                        } catch (e) {}
+                      }}
+                      className="btn btn-sm hover:opacity-80 transition-opacity mx-auto" 
+                      style={{ background: '#fff', color: 'var(--primary)', border: '1px solid rgba(31,122,108,.2)' }} 
+                      title="Undo Application">
+                      ⎌ Undo
+                    </button>
                   </div>
                 ) : (
                   <>

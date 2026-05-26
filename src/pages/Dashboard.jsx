@@ -9,7 +9,7 @@ import { useAuth } from '../context/AuthContext'
 const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
 
 export default function Dashboard() {
-  const { toast, appHistory } = useApp()
+  const { toast, appHistory, jobStatuses, applyToJob, withdrawApplication } = useApp()
   const { currentUser, storedPrefs }   = useAuth()
   const navigate = useNavigate()
 
@@ -63,24 +63,21 @@ export default function Dashboard() {
     if (job.apply_link) {
       window.open(job.apply_link, '_blank')
     }
+    // No automatic status update here. The user will manually mark it as applied.
+  }
 
+  const undoApply = async (job) => {
+    withdrawApplication(job.id)
     try {
-
-      const res = await fetch(`${API_BASE}/apply-job`, {
-        method: 'POST',
+      const res = await fetch(`${API_BASE}/jobs/${job.id}/status`, {
+        method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId: job.id })
+        body: JSON.stringify({ status: 'New' })
       })
-
       if (res.ok) {
-        setDashboardJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: 'Applied' } : j))
-        toast('Job marked as applied! 🎉')
-        fetchDashboardData()
+        setDashboardJobs(prev => prev.map(j => j.id === job.id ? { ...j, status: 'New' } : j))
       }
-    } catch (error) {
-      console.error('Error applying:', error)
-      toast('Failed to update status', 'error')
-    }
+    } catch (e) {}
   }
 
   function isPrefMatch(j) {
@@ -253,7 +250,7 @@ export default function Dashboard() {
                         <Link to={`/jobs/${j.id}`} className="btn btn-ghost btn-sm flex-1 justify-center">View</Link>
                         <Link to={`/resume?job=${j.id}`} className="btn btn-ghost btn-sm flex-1 justify-center">Resume</Link>
                         {isApplied
-                          ? <span className="btn btn-sm flex-1 justify-center" style={{ background: 'var(--primary-lt)', color: 'var(--primary)', border: 'none' }}>✓ Applied</span>
+                          ? <button className="btn btn-sm flex-1 justify-center hover:opacity-80 transition-opacity" onClick={() => undoApply(j)} style={{ background: 'var(--primary-lt)', color: 'var(--primary)', border: 'none' }} title="Click to undo">✓ Applied</button>
                           : <button className="btn btn-primary btn-sm flex-1 justify-center" onClick={() => handleApply(j)}>Quick Apply</button>
                         }
                       </div>

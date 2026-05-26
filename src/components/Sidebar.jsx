@@ -78,6 +78,16 @@ export default function Sidebar() {
             </svg>
             Edit Preferences
           </button>
+
+          <NavLink to="/payment" className="sidebar-link group mt-1" style={{ position: 'relative', overflow: 'hidden' }}>
+            <div className="absolute inset-0 transition-opacity duration-300 opacity-10 group-hover:opacity-20" style={{ background: 'linear-gradient(90deg, #f59e0b 0%, transparent 100%)' }}></div>
+            <svg className="w-4 h-4 relative z-10 transition-transform duration-300 group-hover:scale-110" style={{ color: '#d97706' }} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
+            </svg>
+            <span className="relative z-10 font-bold transition-all duration-300" style={{ background: 'linear-gradient(90deg, #b45309, #d97706)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+              Upgrade Plan
+            </span>
+          </NavLink>
         </nav>
 
         {/* ── User block (dynamic) ── */}

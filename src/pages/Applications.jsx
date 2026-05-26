@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Sidebar from '../components/Sidebar'
 import TopBar from '../components/TopBar'
@@ -19,59 +19,24 @@ const appliedByBadge = {
 }
 
 export default function Applications() {
-  const { appHistory, markInterview, markRejected, sendFollowUp, followUps, saveJob, toast } = useApp()
+  const { jobs, appHistory, updateJobStatus, withdrawApplication, sendFollowUp, followUps, saveJob, toast } = useApp()
   const [tab, setTab]           = useState('history')
   const [applyJob, setApplyJob] = useState(null)
-  const [myJobs, setMyJobs] = useState([])
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
-    fetch(`${API_BASE}/my-jobs`)
-      .then(res => res.json())
-      .then(data => {
-        console.log('[Frontend Applications] my-jobs array length:', Array.isArray(data) ? data.length : (data.jobs ? data.jobs.length : 0))
-        setMyJobs(Array.isArray(data) ? data : (data.jobs || []))
-        setLoading(false)
-      })
-      .catch(err => {
-        console.error('[Frontend Applications] Failed to fetch applications:', err)
-        setLoading(false)
-      })
-  }, [])
-
-  const updateStatus = async (jobId, newStatus) => {
-    try {
-      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
-      const res = await fetch(`${API_BASE}/jobs/${jobId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: newStatus })
-      });
-      if (res.ok) {
-        setMyJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: newStatus } : j))
-        toast(`Moved to ${newStatus}`)
-      }
-    } catch (err) {
-      console.error(err)
+  
+  const myJobs = jobs.filter(j => j.status !== 'New')
+  
+  const updateStatus = (jobId, newStatus) => {
+    if (newStatus === 'Withdraw') {
+      withdrawApplication(jobId)
+    } else {
+      updateJobStatus(jobId, newStatus)
     }
   }
 
-  const handleSave = async (jobId) => {
-    try {
-      const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
-      const res = await fetch(`${API_BASE}/save-job`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ jobId })
-      });
-      if (res.ok) {
-        setMyJobs(prev => prev.filter(j => j.id !== jobId))
-      }
-    } catch (err) {
-      console.error(err)
-    }
+  const handleSave = (jobId) => {
+    saveJob(jobId)
   }
+
 
   const applied   = myJobs.filter(j => j.status === 'Applied')
   const interview = myJobs.filter(j => j.status === 'Interview')
@@ -127,11 +92,7 @@ export default function Applications() {
 
           {/* ── HISTORY (All Applications) ── */}
           {tab === 'history' && (
-            loading ? (
-              <div className="card p-12 text-center flex flex-col items-center justify-center">
-                <p>Loading applications...</p>
-              </div>
-            ) : myJobs.filter(j => j.status !== 'Saved').length === 0 ? (
+            myJobs.filter(j => j.status !== 'Saved').length === 0 ? (
               <div className="card p-12 text-center flex flex-col items-center gap-3">
                 <span className="text-4xl">📋</span>
                 <p className="font-bold" style={{ color: 'var(--text-h)' }}>No applications yet</p>
@@ -240,8 +201,12 @@ export default function Applications() {
                                   style={{ background: '#f0fdf4', color: '#16a34a', border: 'none' }}>→ Offer</button>
                               )}
                               {(col.key === 'Applied' || col.key === 'Interview') && (
-                                <button onClick={() => updateStatus(j.id, 'Rejected')} className="btn btn-sm px-2 text-xs"
-                                  style={{ background: '#fef2f2', color: '#dc2626', border: 'none' }}>✕</button>
+                                <div className="flex gap-1.5 flex-1">
+                                  <button onClick={() => updateStatus(j.id, 'Rejected')} className="btn btn-sm px-2 text-xs flex-1"
+                                    style={{ background: '#fef2f2', color: '#dc2626', border: 'none' }} title="Mark Rejected">✕</button>
+                                  <button onClick={() => updateStatus(j.id, 'Withdraw')} className="btn btn-sm px-2 text-xs flex-1"
+                                    style={{ background: 'var(--bg-subtle)', color: 'var(--text-m)', border: 'none' }} title="Withdraw Application">⎌</button>
+                                </div>
                               )}
                             </div>
                           </div>

@@ -177,7 +177,7 @@ export default function Landing() {
   useEffect(() => {
     async function fetchPreviewJobs() {
       try {
-        const res = await fetch(`${API_BASE}/jobs?limit=6`)
+        const res = await fetch(`${API_BASE}/jobs?limit=6`, { credentials: 'include' })
         if (res.ok) {
           const data = await res.json()
           const fetched = data.jobs || data.data || data

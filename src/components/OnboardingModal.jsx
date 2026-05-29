@@ -10,6 +10,7 @@ const STEPS = [
   { label: 'Role',   emoji: '👔' },
   { label: 'Resume', emoji: '📄' },
   { label: 'Prefs',  emoji: '⚙️' },
+  { label: 'Security', emoji: '🔒' }
 ]
 
 export default function OnboardingModal({ onClose, onComplete, inline = false }) {
@@ -26,6 +27,14 @@ export default function OnboardingModal({ onClose, onComplete, inline = false })
     salaryExpectation: storedPrefs?.salaryExpectation || '',
     sponsorshipRequired: storedPrefs?.sponsorshipRequired || 'No', 
     skills: storedPrefs?.skills?.join(', ') || '',
+    preferredCountry: storedPrefs?.preferredCountry || '',
+    securityAnswers: {
+      handicapped: '',
+      criminalRecord: '',
+      authorized: '',
+      sponsorship: '',
+      fired: ''
+    }
   })
 
   // Resume step state
@@ -52,14 +61,6 @@ export default function OnboardingModal({ onClose, onComplete, inline = false })
     setResumeError('')
     if (!file) return
     const ext = file.name.split('.').pop().toLowerCase()
-    if (!['pdf', 'doc', 'docx'].includes(ext)) {
-      setResumeError('Only PDF, DOC or DOCX files are allowed.')
-      return
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setResumeError('File too large. Maximum size is 5 MB.')
-      return
-    }
     setResumeFile(file)
     setUploadState('idle')
     setParsedData(null)
@@ -227,9 +228,9 @@ export default function OnboardingModal({ onClose, onComplete, inline = false })
       {step === 2 && (
         <div className="p-7 flex flex-col gap-5">
           <div>
-            <h3 className="font-bold text-base mb-1" style={{ color: 'var(--text-h)' }}>Upload Your Resume</h3>
+            <h3 className="font-bold text-base mb-1" style={{ color: 'var(--text-h)' }}>Upload Your Resume (Optional)</h3>
             <p className="text-sm mb-5" style={{ color: 'var(--text-m)' }}>
-              We'll auto-fill your preferences and suggest best-fit roles from your resume.
+              Upload resume to improve job matching (optional)
             </p>
 
             {/* Drop Zone */}
@@ -329,13 +330,15 @@ export default function OnboardingModal({ onClose, onComplete, inline = false })
           <div className="flex justify-between pt-2 border-t" style={{ borderColor: 'var(--border)' }}>
             <button className="btn btn-ghost btn-md" onClick={() => setStep(1)}>← Back</button>
             <div className="flex gap-2">
-              <button className="btn btn-ghost btn-md" onClick={() => setStep(3)}
-                style={{ color: 'var(--text-m)' }}>
+              <button className="btn btn-ghost btn-md" onClick={() => setStep(3)} style={{ color: 'var(--text-m)' }}>
                 Skip for now
               </button>
-              <button className="btn btn-primary btn-lg" onClick={() => setStep(3)}
-                disabled={uploadState === 'uploading'}>
-                {uploadState === 'done' ? '✅ Next: Preferences →' : 'Next: Preferences →'}
+              <button 
+                className="btn btn-primary btn-lg" 
+                onClick={() => setStep(3)} 
+                disabled={uploadState === 'uploading' || (resumeFile && uploadState !== 'done')}
+              >
+                {uploadState === 'done' ? '✅ Next: Preferences →' : 'Skip & Continue →'}
               </button>
             </div>
           </div>
@@ -350,6 +353,10 @@ export default function OnboardingModal({ onClose, onComplete, inline = false })
             {uploadState === 'done' && <span className="ml-2 text-xs font-normal px-2 py-0.5 rounded-full" style={{ background: '#f0fdf4', color: '#16a34a' }}>✅ Auto-filled from resume</span>}
           </h3>
           <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <label className="text-xs font-bold uppercase tracking-wide block mb-1.5" style={{ color: 'var(--text-m)' }}>Preferred Country</label>
+              <input className="input" placeholder="e.g. USA, UK, Canada, India" value={form.preferredCountry} onChange={e => set('preferredCountry', e.target.value)} />
+            </div>
             <div>
               <label className="text-xs font-bold uppercase tracking-wide block mb-1.5" style={{ color: 'var(--text-m)' }}>Preferred Location</label>
               <input className="input" placeholder="e.g. San Francisco, CA or Any" value={form.location} onChange={e => set('location', e.target.value)} />
@@ -412,8 +419,87 @@ export default function OnboardingModal({ onClose, onComplete, inline = false })
             </div>
           )}
           <div className="flex justify-between pt-2 border-t mt-2" style={{ borderColor: 'var(--border)' }}>
-            <button className="btn btn-ghost btn-md" onClick={() => setStep(2)} disabled={isLoading}>← Back</button>
-            <button className="btn btn-primary btn-lg" onClick={finish} disabled={isLoading}>
+            <button className="btn btn-ghost btn-md" onClick={() => setStep(2)}>← Back</button>
+            <div className="flex gap-2">
+              <button className="btn btn-ghost btn-md" onClick={() => setStep(4)} style={{ color: 'var(--text-m)' }}>
+                Skip for now
+              </button>
+              <button className="btn btn-primary btn-lg" onClick={() => setStep(4)}>
+                Next: Security & Background →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* STEP 4 — Security Questions */}
+      {step === 4 && (
+        <div className="p-7 flex flex-col gap-5">
+          <h3 className="font-bold text-base" style={{ color: 'var(--text-h)' }}>Security & Background Questionnaire</h3>
+          <p className="text-sm mb-4" style={{ color: 'var(--text-m)' }}>
+            Please answer the following standard security and HR background questions to complete your profile for job applications.
+          </p>
+
+          <div className="space-y-6">
+            <h4 className="font-bold text-sm text-primary">General Background</h4>
+            
+            <div className="space-y-2">
+              <label className="text-sm font-semibold block">Are you physically handicapped?</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="handicapped" value="Yes" checked={form.securityAnswers.handicapped === 'Yes'} onChange={(e) => setForm(f => ({ ...f, securityAnswers: { ...f.securityAnswers, handicapped: e.target.value } }))} /> Yes</label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="handicapped" value="No" checked={form.securityAnswers.handicapped === 'No'} onChange={(e) => setForm(f => ({ ...f, securityAnswers: { ...f.securityAnswers, handicapped: e.target.value } }))} /> No</label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold block">Do you have any pending criminal cases against you?</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="criminalRecord" value="Yes" checked={form.securityAnswers.criminalRecord === 'Yes'} onChange={(e) => setForm(f => ({ ...f, securityAnswers: { ...f.securityAnswers, criminalRecord: e.target.value } }))} /> Yes</label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="criminalRecord" value="No" checked={form.securityAnswers.criminalRecord === 'No'} onChange={(e) => setForm(f => ({ ...f, securityAnswers: { ...f.securityAnswers, criminalRecord: e.target.value } }))} /> No</label>
+              </div>
+            </div>
+
+            <h4 className="font-bold text-sm text-primary pt-4 border-t border-slate-100">Employment Eligibility</h4>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold block">Are you legally authorized to work in the country you are applying in?</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="authorized" value="Yes" checked={form.securityAnswers.authorized === 'Yes'} onChange={(e) => setForm(f => ({ ...f, securityAnswers: { ...f.securityAnswers, authorized: e.target.value } }))} /> Yes</label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="authorized" value="No" checked={form.securityAnswers.authorized === 'No'} onChange={(e) => setForm(f => ({ ...f, securityAnswers: { ...f.securityAnswers, authorized: e.target.value } }))} /> No</label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold block">Will you now or in the future require sponsorship for employment visa status?</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="sponsorship" value="Yes" checked={form.securityAnswers.sponsorship === 'Yes'} onChange={(e) => setForm(f => ({ ...f, securityAnswers: { ...f.securityAnswers, sponsorship: e.target.value } }))} /> Yes</label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="sponsorship" value="No" checked={form.securityAnswers.sponsorship === 'No'} onChange={(e) => setForm(f => ({ ...f, securityAnswers: { ...f.securityAnswers, sponsorship: e.target.value } }))} /> No</label>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold block">Have you ever been fired, dismissed, or asked to resign from a job?</label>
+              <div className="flex gap-4">
+                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="fired" value="Yes" checked={form.securityAnswers.fired === 'Yes'} onChange={(e) => setForm(f => ({ ...f, securityAnswers: { ...f.securityAnswers, fired: e.target.value } }))} /> Yes</label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="radio" name="fired" value="No" checked={form.securityAnswers.fired === 'No'} onChange={(e) => setForm(f => ({ ...f, securityAnswers: { ...f.securityAnswers, fired: e.target.value } }))} /> No</label>
+              </div>
+            </div>
+          </div>
+
+          {error && (
+            <div className="rounded-xl px-4 py-3 text-sm font-semibold mt-2"
+              style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca' }}>
+              {error}
+            </div>
+          )}
+
+          <div className="flex justify-between pt-2 border-t mt-4" style={{ borderColor: 'var(--border)' }}>
+            <button className="btn btn-ghost btn-md" onClick={() => setStep(3)} disabled={isLoading}>← Back</button>
+            <button 
+              className="btn btn-primary btn-lg" 
+              onClick={finish} 
+              disabled={isLoading}
+            >
               {isLoading ? 'Saving…' : '💾 Save & Continue →'}
             </button>
           </div>

@@ -15,10 +15,7 @@ export default function Pricing() {
   const [couponError, setCouponError] = useState('');
   const [validating, setValidating] = useState(false);
 
-  // TEMP PAYMENT BYPASS FOR DEVELOPMENT
-  const handleSkipForNow = () => {
-    navigate('/dashboard');
-  };
+
 
   useEffect(() => {
     const script = document.createElement('script');
@@ -42,6 +39,7 @@ export default function Pricing() {
       const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
       const res = await fetch(`${API_BASE}/payment/validate-coupon`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -86,6 +84,7 @@ export default function Pricing() {
       
       const orderRes = await fetch(`${API_BASE}/payment/create-order`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}` 
@@ -129,6 +128,7 @@ export default function Pricing() {
           try {
             const verifyRes = await fetch(`${API_BASE}/payment/verify-payment`, {
               method: 'POST',
+              credentials: 'include',
               headers: { 
                 'Content-Type': 'application/json',
                 Authorization: `Bearer ${token}`
@@ -247,14 +247,14 @@ export default function Pricing() {
 
             <ul className="space-y-3 mb-6 flex-1">
               {[
-                'AI Resume Generator',
-                'Resume ATS Score Checker',
-                'Smart Job Recommendations',
-                'Save Unlimited Jobs',
-                'One-click Resume Download',
-                'Basic Job Tracking Dashboard',
-                'Email Support',
-                'Profile Skill Analysis'
+                'Daily Curated Jobs',
+                'Resume Builder Access',
+                'Smart Job Matching',
+                'Manual One-Click Apply',
+                'Resume-Based Recommendations',
+                'Application Tracking',
+                'Personalized Job Feed',
+                'Resume ATS Optimization'
               ].map((feature, i) => (
                 <li key={i} className="flex items-start gap-2.5 text-[13px] font-medium" style={{ color: 'var(--text-b)' }}>
                   <div className="rounded-full p-1 flex-shrink-0 mt-0.5" style={{ background: 'var(--primary-lt)', color: 'var(--primary)' }}>
@@ -326,19 +326,7 @@ export default function Pricing() {
           </div>
         </div>
 
-        {/* Skip for Now */}
-        <div className="mt-8 text-center">
-          <button
-            onClick={handleSkipForNow}
-            disabled={loading}
-            className="text-xs sm:text-sm font-bold transition-colors hover:underline"
-            style={{ color: 'var(--text-m)', textUnderlineOffset: '4px' }}
-            onMouseEnter={(e) => e.currentTarget.style.color = 'var(--primary)'}
-            onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-m)'}
-          >
-            Skip For Now
-          </button>
-        </div>
+        {/* End of Pricing Cards */}
       </main>
       
       {/* Integrated Coupon Modal (opens only AFTER clicking Get Started) */}

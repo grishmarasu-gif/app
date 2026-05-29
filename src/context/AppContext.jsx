@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useRef, useCallback } from 'react'
+import { createContext, useContext, useState, useRef, useCallback, useMemo } from 'react'
 import { jobs as initialJobs } from '../data/jobs'
 import { useAuth } from './AuthContext'
 
@@ -49,34 +49,36 @@ export function AppProvider({ children }) {
   // ── Toast state ───────────────────────────────────────────────
   const [toasts, setToasts] = useState([])
 
-  function toast(msg, type = 'success') {
+  const toast = useCallback((msg, type = 'success') => {
     const id = Date.now()
     setToasts(t => [...t, { id, msg, type }])
     setTimeout(() => setToasts(t => t.filter(x => x.id !== id)), 3500)
-  }
+  }, [])
 
   // ── Persisted setters ─────────────────────────────────────────
-  function setJobStatuses(updater) {
+  const setJobStatuses = useCallback((updater) => {
     setJobStatusesState(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater
       LS.set(statusKey, next)
       return next
     })
-  }
-  function setAppHistory(updater) {
+  }, [statusKey])
+
+  const setAppHistory = useCallback((updater) => {
     setAppHistoryState(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater
       LS.set(appsKey, next)
       return next
     })
-  }
-  function setFollowUps(updater) {
+  }, [appsKey])
+
+  const setFollowUps = useCallback((updater) => {
     setFollowUpsState(prev => {
       const next = typeof updater === 'function' ? updater(prev) : updater
       LS.set(followKey, next)
       return next
     })
-  }
+  }, [followKey])
 
   // ── Enriched jobs ─────────────────────────────────────────────
   const jobs = initialJobs.map(j => ({
@@ -86,16 +88,16 @@ export function AppProvider({ children }) {
   }))
 
   // ── Save job ──────────────────────────────────────────────────
-  function saveJob(jobId) {
+  const saveJob = useCallback((jobId) => {
     setJobStatuses(s => {
       const next = s[jobId] === 'Saved' ? 'New' : 'Saved'
       toast(next === 'Saved' ? 'Job saved 🔖' : 'Removed from saved')
       return { ...s, [jobId]: next }
     })
-  }
+  }, [setJobStatuses, toast])
 
   // ── Apply to job ──────────────────────────────────────────────
-  function applyToJob(jobId, appliedBy = 'Manual') {
+  const applyToJob = useCallback((jobId, appliedBy = 'Manual') => {
     // Prevent duplicate
     if (appHistory.some(a => a.jobId === jobId)) {
       if (appliedBy === 'Manual') toast('Already applied to this job', 'info')
@@ -117,23 +119,23 @@ export function AppProvider({ children }) {
     if (appliedBy === 'Manual') toast('Application submitted! 🎉')
     else toast(`Auto Apply: Applied to ${job?.title} ⚡`, 'success')
     return true
-  }
+  }, [appHistory, storedPrefs, setJobStatuses, setAppHistory, toast])
 
-  function markInterview(jobId) {
-    updateJobStatus(jobId, 'Interview')
-  }
-
-  function markRejected(jobId) {
-    updateJobStatus(jobId, 'Rejected')
-  }
-
-  function updateJobStatus(jobId, newStatus) {
+  const updateJobStatus = useCallback((jobId, newStatus) => {
     setJobStatuses(s => ({ ...s, [jobId]: newStatus }))
     setAppHistory(h => h.map(a => a.jobId === jobId ? { ...a, status: newStatus } : a))
     toast(newStatus === 'Rejected' ? 'Marked as Rejected' : `Moved to ${newStatus}`)
-  }
+  }, [setJobStatuses, setAppHistory, toast])
 
-  function withdrawApplication(jobId) {
+  const markInterview = useCallback((jobId) => {
+    updateJobStatus(jobId, 'Interview')
+  }, [updateJobStatus])
+
+  const markRejected = useCallback((jobId) => {
+    updateJobStatus(jobId, 'Rejected')
+  }, [updateJobStatus])
+
+  const withdrawApplication = useCallback((jobId) => {
     setJobStatuses(s => {
       const next = { ...s }
       next[jobId] = 'New'
@@ -141,12 +143,12 @@ export function AppProvider({ children }) {
     })
     setAppHistory(h => h.filter(a => a.jobId !== jobId))
     toast('Application withdrawn', 'info')
-  }
+  }, [setJobStatuses, setAppHistory, toast])
 
-  function sendFollowUp(jobId) {
+  const sendFollowUp = useCallback((jobId) => {
     setFollowUps(f => ({ ...f, [jobId]: true }))
     toast('Follow-up sent 📧')
-  }
+  }, [setFollowUps, toast])
 
   // ── Stop Auto Apply ───────────────────────────────────────────
   const stopAutoApply = useCallback((msg = 'Auto Apply session stopped') => {
@@ -221,18 +223,28 @@ export function AppProvider({ children }) {
       idx += 1
       setAutoSession(s => s ? { ...s, submitted, idx, currentJob: idx < queue.length ? queue[idx] : null } : null)
     }, 3000)
-  }, [sessionEmail, storedPrefs, statusKey, appsKey]) // eslint-disable-line
+  }, [sessionEmail, storedPrefs, statusKey, appsKey, applyToJob, currentUser, toast])
+
+  const contextValue = useMemo(() => ({
+    jobs, jobStatuses,
+    saveJob, applyToJob, markInterview, markRejected, updateJobStatus, withdrawApplication, sendFollowUp,
+    followUps, appHistory,
+    autoApply, setAutoApply,
+    autoSession,
+    startAutoApply, stopAutoApply,
+    toast,
+  }), [
+    jobs, jobStatuses,
+    saveJob, applyToJob, markInterview, markRejected, updateJobStatus, withdrawApplication, sendFollowUp,
+    followUps, appHistory,
+    autoApply,
+    autoSession,
+    startAutoApply, stopAutoApply,
+    toast,
+  ])
 
   return (
-    <AppContext.Provider value={{
-      jobs, jobStatuses,
-      saveJob, applyToJob, markInterview, markRejected, updateJobStatus, withdrawApplication, sendFollowUp,
-      followUps, appHistory,
-      autoApply, setAutoApply,
-      autoSession,
-      startAutoApply, stopAutoApply,
-      toast,
-    }}>
+    <AppContext.Provider value={contextValue}>
       {children}
 
       {/* Global toast */}

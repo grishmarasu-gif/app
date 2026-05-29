@@ -62,6 +62,7 @@ export default function ResumeBuilder() {
       }
       try {
         const res = await fetch(`${API_BASE}/resume/me`, {
+          credentials: 'include',
           headers: { Authorization: `Bearer ${token}` }
         })
         if (res.ok) {
@@ -104,7 +105,11 @@ export default function ResumeBuilder() {
     if (step === 1) {
       setLoadingJobs(true)
       const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
-      fetch(`${API_BASE}/jobs`)
+      const token = localStorage.getItem('authToken');
+      fetch(`${API_BASE}/jobs`, { 
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {}
+      })
         .then(res => res.json())
         .then(data => {
           const fetchedJobs = Array.isArray(data) ? data : (data.jobs || [])
@@ -133,11 +138,8 @@ export default function ResumeBuilder() {
     setForm(f => ({ ...f, [key]: [...f[key], emptyObj] }))
   }
 
-  // STRICT JOB FILTERING: Only show jobs matching onboarding preferences
-  const sortedJobs = [...dbJobs].filter(j => {
-    if (preferences.roles.length === 0) return true; // show all if no prefs
-    return preferences.roles.some(r => j.title?.toLowerCase().includes(r.toLowerCase().split(' ')[0]));
-  }).sort((a, b) => (b.prefMatchScore ?? b.matchScore ?? 0) - (a.prefMatchScore ?? a.matchScore ?? 0))
+  // Show all jobs, sorted by match score
+  const sortedJobs = [...dbJobs].sort((a, b) => (b.prefMatchScore ?? b.matchScore ?? 0) - (a.prefMatchScore ?? a.matchScore ?? 0))
 
   const skillsArr  = form.skills.split(',').map(s => s.trim()).filter(Boolean)
 

@@ -13,7 +13,12 @@ export default function Dashboard() {
   const { currentUser, storedPrefs }   = useAuth()
   const navigate = useNavigate()
 
-  const preferences = storedPrefs || { domains: [], roles: [], workPreference: '', experienceLevel: '' }
+  const preferences = {
+    domains: storedPrefs?.domains || [],
+    roles: storedPrefs?.roles || [],
+    workPreference: storedPrefs?.workPreference || '',
+    experienceLevel: storedPrefs?.experienceLevel || ''
+  }
   const firstName  = (currentUser?.name || 'User').split(' ')[0]
   const hasPref    = preferences.domains.length > 0
 
@@ -27,9 +32,12 @@ export default function Dashboard() {
     try {
       console.log(`[Frontend Dashboard] Fetching jobs from: ${API_BASE}/jobs?sort=newest`);
 
+      const token = localStorage.getItem('authToken');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
       const [jobsRes, statsRes] = await Promise.all([
-        fetch(`${API_BASE}/jobs?sort=newest`),
-        fetch(`${API_BASE}/stats`)
+        fetch(`${API_BASE}/jobs?sort=newest`, { credentials: 'include', headers }),
+        fetch(`${API_BASE}/stats`, { credentials: 'include', headers })
       ])
 
       if (jobsRes.ok) {
@@ -57,7 +65,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchDashboardData()
-  }, [fetchDashboardData])
+  }, [fetchDashboardData, storedPrefs])
 
   const handleApply = async (job) => {
     if (job.apply_link) {
@@ -69,9 +77,11 @@ export default function Dashboard() {
   const undoApply = async (job) => {
     withdrawApplication(job.id)
     try {
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`${API_BASE}/jobs/${job.id}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ status: 'New' })
       })
       if (res.ok) {
@@ -81,18 +91,11 @@ export default function Dashboard() {
   }
 
   function isPrefMatch(j) {
-    if (!preferences.roles?.length) return false
-    return preferences.roles.some(r => j.title.toLowerCase().includes(r.toLowerCase().split(' ')[0]))
+    return j.matchScore >= 70
   }
 
-  // Recommended = top 6 jobs sorted by preference match
-  const recommended = [...dashboardJobs].sort((a, b) => {
-    const aMatch = isPrefMatch(a)
-    const bMatch = isPrefMatch(b)
-    if (aMatch && !bMatch) return -1
-    if (!aMatch && bMatch) return 1
-    return b.matchScore - a.matchScore
-  }).slice(0, 6)
+  // Recommended = top 6 jobs sorted by backend matchScore
+  const recommended = [...dashboardJobs].sort((a, b) => b.matchScore - a.matchScore).slice(0, 6)
 
   const topScore = dashboardJobs.length ? Math.max(...dashboardJobs.map(j => j.matchScore)) : 0
 
@@ -111,6 +114,18 @@ export default function Dashboard() {
       <div className="flex-1" style={{ marginLeft: 240 }}>
         <TopBar title="Dashboard" subtitle={`Welcome back, ${firstName} 👋`} />
         <main className="p-7 flex flex-col gap-7">
+
+          {currentUser?.canApplyJobs === false && (
+            <div className="rounded-xl px-5 py-4 flex flex-wrap items-center gap-4 bg-red-50 border border-red-200">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-red-800 mb-1 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                  Manual Review Required
+                </p>
+                <p className="text-sm text-red-700">Your profile requires manual review based on your security questionnaire answers before job applications can continue.</p>
+              </div>
+            </div>
+          )}
 
           {/* Preference banner */}
           {hasPref && (
@@ -251,7 +266,11 @@ export default function Dashboard() {
                         <Link to={`/resume?job=${j.id}`} className="btn btn-ghost btn-sm flex-1 justify-center">Resume</Link>
                         {isApplied
                           ? <button className="btn btn-sm flex-1 justify-center hover:opacity-80 transition-opacity" onClick={() => undoApply(j)} style={{ background: 'var(--primary-lt)', color: 'var(--primary)', border: 'none' }} title="Click to undo">✓ Applied</button>
-                          : <button className="btn btn-primary btn-sm flex-1 justify-center" onClick={() => handleApply(j)}>Quick Apply</button>
+                          : (
+                              currentUser?.canApplyJobs !== false 
+                              ? <button className="btn btn-primary btn-sm flex-1 justify-center" onClick={() => handleApply(j)}>Quick Apply</button>
+                              : <button disabled className="btn btn-sm flex-1 justify-center bg-gray-200 text-gray-500 cursor-not-allowed">Review Required</button>
+                            )
                         }
                       </div>
                     </div>

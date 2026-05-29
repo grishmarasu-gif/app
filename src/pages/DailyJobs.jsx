@@ -3,6 +3,7 @@ import { Link }     from 'react-router-dom'
 import Sidebar       from '../components/Sidebar'
 import TopBar        from '../components/TopBar'
 import AutoApplyPanel from '../components/AutoApplyPanel'
+import ProGate from '../components/ProGate'
 import { useApp }    from '../context/AppContext'
 import { useAuth }   from '../context/AuthContext'
 
@@ -21,10 +22,16 @@ const STATUS_BADGE = {
 
 export default function DailyJobs() {
   const { appHistory, autoApply, toast, withdrawApplication } = useApp()
-  const { storedPrefs } = useAuth()
+  const { storedPrefs, currentUser } = useAuth()
 
   // Safely destructure preferences
-  const prefs = storedPrefs || { domains: [], roles: [], skills: [], workPreference: '', experienceLevel: '' }
+  const prefs = {
+    domains: storedPrefs?.domains || [],
+    roles: storedPrefs?.roles || [],
+    skills: storedPrefs?.skills || [],
+    workPreference: storedPrefs?.workPreference || '',
+    experienceLevel: storedPrefs?.experienceLevel || ''
+  }
 
   const [search,        setSearch]        = useState('')
   const [workType,      setWorkType]      = useState('All')
@@ -60,15 +67,19 @@ export default function DailyJobs() {
 
       console.log(`[Frontend] Fetching jobs from: ${API_BASE}/jobs?${params.toString()}`);
 
+      const token = localStorage.getItem('authToken');
+      const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
       const [jobsRes, statsRes] = await Promise.all([
-        fetch(`${API_BASE}/jobs?${params.toString()}`),
-        !append ? fetch(`${API_BASE}/stats`) : Promise.resolve(null)
+        fetch(`${API_BASE}/jobs?${params.toString()}`, { credentials: 'include', headers }),
+        !append ? fetch(`${API_BASE}/stats`, { credentials: 'include', headers }) : Promise.resolve(null)
       ])
 
       if (jobsRes.ok) {
         let data;
         try { data = await jobsRes.json(); } catch { data = { jobs: [] }; }
-        const fetchedJobs = data.jobs || data.data || data;
+        let fetchedJobs = data.jobs || data.data || data;
+        if (!Array.isArray(fetchedJobs)) fetchedJobs = [];
         setJobsData(prev => append ? [...prev, ...fetchedJobs] : fetchedJobs)
         if (data.totalPages) setTotalPages(data.totalPages)
         if (data.totalJobs !== undefined) setTotalJobs(data.totalJobs)
@@ -98,7 +109,7 @@ export default function DailyJobs() {
       fetchJobs(1, false)
     }, 300)
     return () => clearTimeout(timer)
-  }, [search, workType, jobType, level, showPrefOnly, sortBy])
+  }, [search, workType, jobType, level, showPrefOnly, sortBy, storedPrefs])
 
   // Fetch when page changes (Load More)
   useEffect(() => {
@@ -109,9 +120,11 @@ export default function DailyJobs() {
 
   const markApplied = async (job) => {
     try {
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`${API_BASE}/apply-job`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ jobId: job.id })
       })
 
@@ -129,9 +142,11 @@ export default function DailyJobs() {
   const undoApply = async (job) => {
     withdrawApplication(job.id)
     try {
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`${API_BASE}/jobs/${job.id}/status`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ status: 'New' })
       })
       if (res.ok) {
@@ -143,9 +158,11 @@ export default function DailyJobs() {
 
   const handleSave = async (jobId) => {
     try {
+      const token = localStorage.getItem('authToken');
       const res = await fetch(`${API_BASE}/save-job`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ jobId })
       })
 
@@ -163,11 +180,8 @@ export default function DailyJobs() {
 
   const hasPref = prefs.roles.length > 0
 
-  function isPrefMatch(j) {
-    if (!hasPref) return false
-    return prefs.roles.some(r =>
-      j.title.toLowerCase().includes(r.toLowerCase().split(' ')[0])
-    )
+  const isPrefMatch = (j) => {
+    return j.matchScore >= 70
   }
 
   // Backend now handles all filtering, so we can use jobsData directly
@@ -286,7 +300,7 @@ export default function DailyJobs() {
               {/* ── GRID VIEW ── */}
               {!loading && view === 'grid' && (
                 <div className="grid md:grid-cols-2 gap-4">
-                  {filtered.map(j => <JobCard key={j.id} job={j} isPrefMatch={isPrefMatch(j)} autoApply={autoApply} onMarkApplied={() => markApplied(j)} onSave={() => handleSave(j.id)} undoApply={undoApply} />)}
+                  {filtered.map(j => <JobCard key={j.id} job={j} isPrefMatch={isPrefMatch(j)} autoApply={autoApply} onMarkApplied={() => markApplied(j)} onSave={() => handleSave(j.id)} undoApply={undoApply} canApplyJobs={currentUser?.canApplyJobs !== false} />)}
                   {filtered.length === 0 && <EmptyState onClear={() => { setSearch(''); setWorkType('All'); setJobType('All'); setLevel('All') }} />}
                 </div>
               )}
@@ -365,7 +379,9 @@ export default function DailyJobs() {
 
             {/* ── RIGHT: Auto Apply Panel ── */}
             <div className="flex flex-col gap-4">
-              <AutoApplyPanel />
+              <ProGate inline featureName="Auto Apply">
+                <AutoApplyPanel />
+              </ProGate>
 
               {/* Manual apply info card */}
               <div className="card p-4">
@@ -401,7 +417,7 @@ export default function DailyJobs() {
 }
 
 // ── Job Card ──────────────────────────────────────────────────────────────
-function JobCard({ job: j, isPrefMatch, autoApply, onMarkApplied, onSave, undoApply }) {
+function JobCard({ job: j, isPrefMatch, autoApply, onMarkApplied, onSave, undoApply, canApplyJobs }) {
   const score     = j.matchScore
   const isApplied = j.status === 'Applied' || j.status === 'Interview'
   const isSaved   = j.status === 'Saved'
@@ -463,8 +479,14 @@ function JobCard({ job: j, isPrefMatch, autoApply, onMarkApplied, onSave, undoAp
           ? <button onClick={() => undoApply(j)} className="btn btn-sm flex-shrink-0 hover:opacity-80 transition-opacity" style={{ background: 'var(--primary-lt)', color: 'var(--primary)', border: 'none' }} title="Click to undo">✓ Applied</button>
           : (
             <div className="flex gap-1 flex-shrink-0">
-              <a href={j.apply_link} target="_blank" rel="noopener" className="btn btn-primary btn-sm">Apply</a>
-              <button onClick={onMarkApplied} className="btn btn-sm text-xs" style={{ padding: '0 6px', background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} title="Mark as applied">✓</button>
+              {canApplyJobs ? (
+                <>
+                  <a href={j.apply_link} target="_blank" rel="noopener" className="btn btn-primary btn-sm">Apply</a>
+                  <button onClick={onMarkApplied} className="btn btn-sm text-xs" style={{ padding: '0 6px', background: 'var(--bg-subtle)', border: '1px solid var(--border)' }} title="Mark as applied">✓</button>
+                </>
+              ) : (
+                <button disabled className="btn btn-sm text-xs bg-gray-200 text-gray-500 cursor-not-allowed px-3">Review Required</button>
+              )}
             </div>
           )
         }

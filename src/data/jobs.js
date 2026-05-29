@@ -3,57 +3,95 @@ export const DOMAINS = [
   'Information Technology',
   'Finance & Banking',
   'Healthcare',
-  'E-commerce / Retail',
+  'Marketing',
+  'Sales',
+  'HR',
+  'Mechanical',
+  'Civil',
+  'Electronics',
   'Education',
-  'Consulting',
-  'Telecommunications',
-  'Manufacturing',
-  'Government / Public Sector',
-  'Startups / Tech Products',
+  'Operations',
+  'Legal',
+  'Hospitality',
+  'Design',
+  'Media'
 ]
 
 export const DOMAIN_ROLES = {
   'Information Technology': [
-    'Software Engineer', 'Frontend Developer', 'Backend Developer',
-    'Full Stack Developer', 'DevOps Engineer', 'QA Engineer',
-    'Cloud Engineer', 'Data Engineer',
+    'ServiceNow Developer', 'AI Engineer', 'Machine Learning Engineer', 'Data Scientist',
+    'Cybersecurity Analyst', 'Cloud Architect', 'DevSecOps Engineer', 'Salesforce Developer',
+    'SAP Consultant', 'Mobile App Developer', 'React Developer', 'Node.js Developer',
+    'Python Developer', 'Java Developer', '.NET Developer', 'Prompt Engineer',
+    'GenAI Engineer', 'Blockchain Developer', 'Site Reliability Engineer', 'Platform Engineer',
+    'UI/UX Developer', 'Automation Test Engineer', 'Product Engineer', 'Solutions Architect',
+    'Business Analyst', 'System Administrator', 'Network Engineer', 'Kubernetes Engineer',
+    'Full Stack Developer', 'Frontend Developer', 'Backend Developer', 'QA Engineer',
+    'Data Engineer', 'DevOps Engineer', 'Cloud Engineer', 'Software Engineer'
   ],
   'Finance & Banking': [
-    'Financial Analyst', 'Risk Analyst', 'Investment Analyst',
-    'Credit Analyst', 'Banking Associate', 'Quantitative Analyst', 'Compliance Analyst',
+    'Financial Analyst', 'Risk Analyst', 'Investment Banker', 'Credit Analyst', 
+    'Banking Associate', 'Quantitative Analyst', 'Compliance Officer', 'Actuary',
+    'Wealth Manager', 'Portfolio Manager', 'Fund Accountant', 'Tax Consultant'
   ],
   'Healthcare': [
     'Healthcare Analyst', 'Clinical Data Analyst', 'Health IT Specialist',
     'Medical Billing Analyst', 'Healthcare Operations Analyst', 'Health Data Scientist',
+    'Registered Nurse', 'Physician Assistant', 'Medical Technologist', 'Pharmacist'
   ],
-  'E-commerce / Retail': [
-    'E-commerce Analyst', 'Product Manager', 'Digital Marketing Analyst',
-    'Supply Chain Analyst', 'Merchandising Analyst', 'Customer Experience Analyst',
+  'Marketing': [
+    'Digital Marketing Manager', 'SEO Specialist', 'Content Strategist', 'PPC Analyst',
+    'Brand Manager', 'Social Media Manager', 'Marketing Analyst', 'Growth Hacker',
+    'Product Marketing Manager', 'Email Marketing Specialist'
+  ],
+  'Sales': [
+    'Account Executive', 'Sales Development Rep (SDR)', 'Business Development Manager',
+    'Sales Engineer', 'Key Account Manager', 'Sales Operations Analyst', 'VP of Sales',
+    'Customer Success Manager', 'Inside Sales Rep'
+  ],
+  'HR': [
+    'HR Business Partner', 'Talent Acquisition Specialist', 'Recruiter', 'HR Generalist',
+    'Compensation & Benefits Analyst', 'Learning & Development Manager', 'HRIS Analyst',
+    'Employee Relations Specialist', 'Diversity & Inclusion Manager'
+  ],
+  'Mechanical': [
+    'Mechanical Engineer', 'HVAC Engineer', 'Manufacturing Engineer', 'CAD Designer',
+    'Automotive Engineer', 'Aerospace Engineer', 'Robotics Engineer', 'Maintenance Engineer'
+  ],
+  'Civil': [
+    'Civil Engineer', 'Structural Engineer', 'Construction Manager', 'Urban Planner',
+    'Transportation Engineer', 'Geotechnical Engineer', 'Surveyor', 'Estimator'
+  ],
+  'Electronics': [
+    'Electronics Engineer', 'Embedded Systems Engineer', 'Hardware Engineer',
+    'Control Systems Engineer', 'VLSI Design Engineer', 'Test Engineer', 'FPGA Developer'
   ],
   'Education': [
-    'EdTech Developer', 'Instructional Designer', 'Learning Analyst',
-    'Education Data Analyst', 'Curriculum Developer', 'Academic Program Manager',
+    'Instructional Designer', 'EdTech Developer', 'Curriculum Developer',
+    'Academic Coordinator', 'E-Learning Specialist', 'Education Data Analyst',
+    'Professor', 'Teacher'
   ],
-  'Consulting': [
-    'Management Consultant', 'Business Analyst', 'Strategy Consultant',
-    'Operations Consultant', 'Technology Consultant', 'Data Consultant',
+  'Operations': [
+    'Operations Manager', 'Supply Chain Analyst', 'Logistics Coordinator',
+    'Procurement Manager', 'Process Improvement Specialist', 'Inventory Manager',
+    'Quality Assurance Manager', 'Facilities Manager'
   ],
-  'Telecommunications': [
-    'Network Engineer', 'Telecom Analyst', 'RF Engineer',
-    'Systems Engineer', 'Solutions Architect', 'Network Operations Analyst',
+  'Legal': [
+    'Corporate Counsel', 'Paralegal', 'Legal Assistant', 'Compliance Specialist',
+    'Contract Administrator', 'Intellectual Property Lawyer', 'Litigation Support'
   ],
-  'Manufacturing': [
-    'Manufacturing Engineer', 'Process Engineer', 'Quality Engineer',
-    'Supply Chain Manager', 'Production Analyst', 'Industrial Engineer',
+  'Hospitality': [
+    'Hotel Manager', 'Event Planner', 'Food & Beverage Manager', 'Guest Relations Manager',
+    'Executive Chef', 'Travel Consultant', 'Revenue Manager'
   ],
-  'Government / Public Sector': [
-    'Policy Analyst', 'Government IT Specialist', 'Public Affairs Analyst',
-    'Compliance Officer', 'Program Manager', 'Data Analyst',
+  'Design': [
+    'UI/UX Designer', 'Graphic Designer', 'Product Designer', 'Art Director',
+    'Motion Graphics Designer', 'Industrial Designer', 'Interior Designer', 'Web Designer'
   ],
-  'Startups / Tech Products': [
-    'Product Manager', 'Growth Analyst', 'Full Stack Developer',
-    'UX Designer', 'Startup Business Analyst', 'Product Marketing Manager',
-  ],
+  'Media': [
+    'Content Writer', 'Copywriter', 'Journalist', 'Video Editor', 'Producer',
+    'Public Relations Specialist', 'Social Media Coordinator', 'Broadcast Engineer'
+  ]
 }
 
 // ─── Jobs data ────────────────────────────────────────────────────────

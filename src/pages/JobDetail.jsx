@@ -14,7 +14,11 @@ export default function JobDetail() {
 
   useEffect(() => {
     const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
-    fetch(`${API_BASE}/jobs/${id}`)
+    const token = localStorage.getItem('authToken');
+    fetch(`${API_BASE}/jobs/${id}`, { 
+      credentials: 'include',
+      headers: token ? { Authorization: `Bearer ${token}` } : {}
+    })
       .then(res => res.json())
       .then(data => {
         setJob(data)
@@ -159,9 +163,11 @@ export default function JobDetail() {
                         withdrawApplication(job.id)
                         try {
                           const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
+                          const token = localStorage.getItem('authToken');
                           const res = await fetch(`${API_BASE}/jobs/${job.id}/status`, {
                             method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
                             body: JSON.stringify({ status: 'New' })
                           });
                           if (res.ok) setJob(prev => ({ ...prev, status: 'New' }));
@@ -186,9 +192,11 @@ export default function JobDetail() {
                       onClick={async () => {
                         try {
                           const API_BASE = import.meta.env.VITE_API_URL ? `${import.meta.env.VITE_API_URL.replace(/\/+$/, '')}/api` : 'http://localhost:3000/api';
+                          const token = localStorage.getItem('authToken');
                           const res = await fetch(`${API_BASE}/apply-job`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            credentials: 'include',
+                            headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
                             body: JSON.stringify({ jobId: job.id })
                           });
                           if (res.ok) {

@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react'
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react'
 
 const AuthContext = createContext(null)
 
@@ -40,6 +40,7 @@ export function AuthProvider({ children }) {
     async function fetchMe() {
       try {
         const res = await fetch(`${API_BASE}/auth/me`, {
+          credentials: 'include',
           headers: { Authorization: `Bearer ${token}` }
         })
         if (res.ok) {
@@ -60,10 +61,11 @@ export function AuthProvider({ children }) {
   }, [token])
 
   // ── Register ───────────────────────────────────────────────────
-  async function register({ name, email, password }) {
+  const register = useCallback(async ({ name, email, password }) => {
     try {
       const res = await fetch(`${API_BASE}/auth/register`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password })
       })
@@ -76,13 +78,14 @@ export function AuthProvider({ children }) {
       console.error("Register error:", error);
       return { ok: false, error: error.message === 'Failed to fetch' ? 'Cannot connect to server. Ensure backend is running and CORS is configured.' : `Network error: ${error.message}` }
     }
-  }
+  }, [])
 
   // ── Login ──────────────────────────────────────────────────────
-  async function login({ email, password }) {
+  const login = useCallback(async ({ email, password }) => {
     try {
       const res = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password })
       })
@@ -98,14 +101,15 @@ export function AuthProvider({ children }) {
       console.error("Login error:", error);
       return { ok: false, error: error.message === 'Failed to fetch' ? 'Cannot connect to server. Ensure backend is running and CORS is configured.' : `Network error: ${error.message}` }
     }
-  }
+  }, [])
 
   // ── Logout ─────────────────────────────────────────────────────
-  async function logout() {
+  const logout = useCallback(async () => {
     try {
       if (token) {
         await fetch(`${API_BASE}/auth/logout`, {
           method: 'POST',
+          credentials: 'include',
           headers: { Authorization: `Bearer ${token}` }
         }).catch(() => {}); // ignore errors on logout
       }
@@ -116,14 +120,15 @@ export function AuthProvider({ children }) {
       setCurrentUser(null);
       setStoredPrefs(null);
     }
-  }
+  }, [token])
 
   // ── Save preferences ───────────────────────────────────────────
-  async function savePreferences(prefs) {
+  const savePreferences = useCallback(async (prefs) => {
     if (!token) return { ok: false, error: 'Not authenticated' }
     try {
       const res = await fetch(`${API_BASE}/users/preferences`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -144,16 +149,17 @@ export function AuthProvider({ children }) {
       console.error("Save preferences error:", error);
       return { ok: false, error: error.message === 'Failed to fetch' ? 'Cannot connect to server. Ensure backend is running and CORS is configured.' : `Network error: ${error.message}` }
     }
-  }
+  }, [token])
 
   // ── Upload & parse resume ──────────────────────────────────────────────
-  async function uploadResume(file) {
+  const uploadResume = useCallback(async (file) => {
     if (!token) return { ok: false, error: 'Not authenticated' }
     try {
       const formData = new FormData()
       formData.append('resume', file)
       const res = await fetch(`${API_BASE}/resume/upload`, {
         method: 'POST',
+        credentials: 'include',
         headers: { Authorization: `Bearer ${token}` },
         body: formData,
       })
@@ -164,14 +170,15 @@ export function AuthProvider({ children }) {
       console.error('Upload resume error:', error)
       return { ok: false, error: error.message === 'Failed to fetch' ? 'Cannot connect to server.' : `Network error: ${error.message}` }
     }
-  }
+  }, [token])
 
   // ── Update user profile ────────────────────────────────────────
-  async function updateProfile(data) {
+  const updateProfile = useCallback(async (data) => {
     if (!token) return { ok: false, error: 'Not authenticated' }
     try {
       const res = await fetch(`${API_BASE}/users/profile`, {
         method: 'PUT',
+        credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -187,14 +194,15 @@ export function AuthProvider({ children }) {
       console.error("Update profile error:", error);
       return { ok: false, error: error.message === 'Failed to fetch' ? 'Cannot connect to server. Ensure backend is running and CORS is configured.' : `Network error: ${error.message}` }
     }
-  }
+  }, [token])
 
   // ── Complete Pricing ───────────────────────────────────────────
-  async function completePricing() {
+  const completePricing = useCallback(async () => {
     if (!token) return { ok: false, error: 'Not authenticated' }
     try {
       const res = await fetch(`${API_BASE}/users/complete-pricing`, {
         method: 'POST',
+        credentials: 'include',
         headers: { 
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`
@@ -218,26 +226,32 @@ export function AuthProvider({ children }) {
       console.error("Complete pricing error:", error);
       return { ok: false, error: error.message === 'Failed to fetch' ? 'Cannot connect to server.' : `Network error: ${error.message}` }
     }
-  }
+  }, [token])
+
+  const contextValue = useMemo(() => ({
+    isLoggedIn,
+    token,
+    currentUser,
+    pricingCompleted,
+    onboardingCompleted,
+    storedPrefs,
+    prefsExist,
+    isLoading,
+    register,
+    login,
+    logout,
+    savePreferences,
+    uploadResume,
+    updateProfile,
+    completePricing,
+  }), [
+    isLoggedIn, token, currentUser, pricingCompleted, onboardingCompleted,
+    storedPrefs, prefsExist, isLoading,
+    register, login, logout, savePreferences, uploadResume, updateProfile, completePricing
+  ])
 
   return (
-    <AuthContext.Provider value={{
-      isLoggedIn,
-      token,
-      currentUser,
-      pricingCompleted,
-      onboardingCompleted,
-      storedPrefs,
-      prefsExist,
-      isLoading,
-      register,
-      login,
-      logout,
-      savePreferences,
-      uploadResume,
-      updateProfile,
-      completePricing,
-    }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   )

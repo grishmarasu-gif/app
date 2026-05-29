@@ -15,6 +15,7 @@ import Applications    from './pages/Applications'
 import Pricing         from './pages/Pricing'
 import Knowledge       from './pages/Knowledge'
 import LinkedInGrowth  from './pages/LinkedInGrowth'
+import UserVoice       from './pages/UserVoice'
 
 // Requires login only (used for Pricing page)
 function PricingRoute({ children }) {
@@ -90,6 +91,7 @@ function AppRoutes() {
       <Route path="/applications"    element={<AppRoute><Applications /></AppRoute>} />
       <Route path="/knowledge"       element={<AppRoute><Knowledge /></AppRoute>} />
       <Route path="/linkedin-growth" element={<AppRoute><LinkedInGrowth /></AppRoute>} />
+      <Route path="/user-voice"      element={<AppRoute><UserVoice /></AppRoute>} />
 
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
